@@ -323,12 +323,28 @@ const cache={
   who(v){try{if(v===undefined){const w=sessionStorage.getItem(KEY+'-me');return w?JSON.parse(w):null;}
     v===null?sessionStorage.removeItem(KEY+'-me'):sessionStorage.setItem(KEY+'-me',JSON.stringify(v));}catch(e){}return null;}
 };
+const COMMON_CO={trade:'Get Set Startup',addr:'E-207, Sector 63, Noida, Uttar Pradesh',city:'Noida',state:'Uttar Pradesh',stateCode:'09',
+  email:'contact@getsetstartup.biz',phone:'7678541651',website:'getsetstartup.biz',
+  terms:'1) Advance 50%\n2) 25% on first draft, Balance 25% on completion\n3) Delivery in approx. 10 working days(s)\n4) 6 Months Support & Revision Period'};
+const COMPANY_LIST=[
+  {legal:'Get Set Startup',gstin:'09AAGCG2079N1Z2',acName:'Get Set Startup',acNo:'158586979344',ifsc:'INDB0000383',bank:'IndusInd Bank',prefix:'GSS'},
+  {legal:'Goldenbond Corporation Pvt. Ltd.',gstin:'09AAGCG2079N1Z2',acName:'Goldenbond Corporation Pvt. Ltd.',acNo:'50200049760516',ifsc:'HDFC0000590',bank:'HDFC',prefix:'GBC'},
+  {legal:'Get Set Startup',gstin:'09AAGCG2079N1Z2',acName:'Get Set Startup',acNo:'09211930001604',ifsc:'HDFC0000921',bank:'HDFC',prefix:'GSS2'},
+  {legal:'Get Set Startup',gstin:'09AAGCG2079N1Z2',acName:'Get Set Startup',acNo:'09211460000329',ifsc:'HDFC0000921',bank:'HDFC',prefix:'GSS3'},
+  {legal:'Goldenbond Ventures Pvt Ltd',gstin:'09AAJCG5247M1Z1',acName:'Goldenbond Ventures Pvt Ltd',acNo:'50200067793112',ifsc:'HDFC0000590',bank:'HDFC',prefix:'GBV'},
+  {legal:'Get Set Startup',gstin:'09AAGCG2079N1Z2',acName:'Get Set Startup',acNo:'50200064974472',ifsc:'HDFC0000590',bank:'HDFC',prefix:'GSS4'},
+  {legal:'PYCM Consulting',gstin:'09AAGCG2079N1Z2',acName:'PYCM Consulting',acNo:'50200097793696',ifsc:'HDFC0000590',bank:'HDFC',prefix:'PYCM'},
+  {legal:'New Camp Capital Solution Pvt Ltd',gstin:'09AAGCG2079N1Z2',acName:'New Camp Capital Solution Pvt Ltd',acNo:'50200064931850',ifsc:'HDFC0000590',bank:'HDFC',prefix:'NCC'},
+  {legal:'Yougal Minocha',gstin:'09AAGCG2079N1Z2',acName:'Yougal Minocha',acNo:'012763200001790',ifsc:'YESB0000127',bank:'YES Bank',prefix:'YM'}
+];
+const DEFAULT_COMPANIES=()=>COMPANY_LIST.map(c=>Object.assign({id:uid('co'),name:COMMON_CO.trade,pan:'',
+  addr:COMMON_CO.addr,city:COMMON_CO.city,state:COMMON_CO.state,stateCode:COMMON_CO.stateCode,
+  email:COMMON_CO.email,phone:COMMON_CO.phone,website:COMMON_CO.website,upi:'',
+  pfPrefix:c.prefix+'-PI',terms:COMMON_CO.terms},c));
 const DEFAULTS=()=>({
   leads:[],invoices:[],payments:[],tickets:[],audit:[],seq:{},team:[],tags:TAGS.slice(),expenses:[],sources:[],
   services:CATALOG.map(([code,name,rate])=>({code,name,rate})),
-  companies:[{id:uid('co'),name:'Get Set Startup',legal:'Get Set Startup',gstin:'',pan:'',addr:'',city:'',state:'',stateCode:'',
-    email:'',phone:'7678541651',website:'getsetstartup.biz',bank:'',acName:'',acNo:'',ifsc:'',upi:'',
-    prefix:'GSS',pfPrefix:'PI',terms:'Payment due within 7 days. Work begins on receipt of advance.'}],
+  companies:DEFAULT_COMPANIES(),
   settings:{api:'',sheetUrl:'https://docs.google.com/spreadsheets/d/1BnjBv5c2x2bdKv50d985D_GVTU4NnEen_6MBKDn_-dY/edit',
     gstRate:18,dueDays:7,ownerName:'',ownerEmail:'',brand:PRESETS['Get Set Startup'],localHash:'',localSalt:'',localName:'Admin',
     perms:{},targets:{},defaultTarget:0,defaultTerms:'1) Advance 50%\\n2) 25% on first draft, Balance 25% on completion\\n3) Delivery in approx. 10 working days(s)\\n4) 6 Months Support & Revision Period'}
