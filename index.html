@@ -346,7 +346,7 @@ const DEFAULTS=()=>({
   leads:[],invoices:[],payments:[],tickets:[],audit:[],seq:{},team:[],tags:TAGS.slice(),expenses:[],sources:[],
   services:CATALOG.map(([code,name,rate])=>({code,name,rate})),
   companies:DEFAULT_COMPANIES(),
-  settings:{api:'',sheetUrl:'https://docs.google.com/spreadsheets/d/1BnjBv5c2x2bdKv50d985D_GVTU4NnEen_6MBKDn_-dY/edit',
+  settings:{api:'https://script.google.com/macros/s/AKfycbz-IkoDNv4iZbdYVBmjWIfmANROWoGUBVSyQr-MfonUIQ1CxUrygbr3B7FmAeH4YsMivw/exec',sheetUrl:'https://docs.google.com/spreadsheets/d/1BnjBv5c2x2bdKv50d985D_GVTU4NnEen_6MBKDn_-dY/edit',
     gstRate:18,dueDays:7,ownerName:'',ownerEmail:'',brand:PRESETS['Get Set Startup'],localHash:'',localSalt:'',localName:'Admin',
     perms:{},targets:{},defaultTarget:0,defaultTerms:'1) Advance 50%\\n2) 25% on first draft, Balance 25% on completion\\n3) Delivery in approx. 10 working days(s)\\n4) 6 Months Support & Revision Period'}
 });
@@ -452,9 +452,14 @@ function audit(what){
   if(me){setDefaultFilter();checkInbox();setInterval(checkInbox,90000);}
   draw();
 })();
+const DEFAULT_API='https://script.google.com/macros/s/AKfycbz-IkoDNv4iZbdYVBmjWIfmANROWoGUBVSyQr-MfonUIQ1CxUrygbr3B7FmAeH4YsMivw/exec';
 function migrate(){
   S.tickets=S.tickets||[];S.audit=S.audit||[];S.tags=S.tags&&S.tags.length?S.tags:TAGS.slice();
   S.settings.perms=S.settings.perms||{};S.settings.targets=S.settings.targets||{};
+  // Self-heal: any device (old cache, fresh install, or a save from before the backend was wired in)
+  // should always end up pointed at the one shared Google Sheet, never at a blank "set up a new
+  // Sheet" state. Only skip this if someone has deliberately pointed Setup at a different URL.
+  if(!S.settings.api)S.settings.api=DEFAULT_API;
   S.expenses=S.expenses||[];
   S.sources=S.sources&&S.sources.length?S.sources:[{id:uid('src'),kind:'sheet',name:'Primary Google Sheet',url:S.settings.sheetUrl||''}];
   S.seq=S.seq||{};
@@ -492,10 +497,10 @@ function gate(err){
     <label class="f"><span>${first?'New password':'Password'}</span><input id="gp" type="password" autocomplete="current-password"></label>
     ${first?`<label class="f"><span>Repeat password</span><input id="gp2" type="password"></label>`:''}
     <button class="btn wide" id="gsign">${first?'Set password':'Sign in'}</button>
-    <details class="help" style="margin-top:14px;border:0;padding:0;box-shadow:none">
-      <summary class="eyebrow">Connect to Google Sheet</summary>
+    ${local?`<details class="help" style="margin-top:14px;border:0;padding:0;box-shadow:none">
+      <summary class="eyebrow">Advanced: point this device at a different Sheet</summary>
       <label class="f" style="margin-top:9px"><span>Apps Script web app URL</span><input id="gapi" value="${esc(S.settings.api||'')}"></label>
-      <button class="btn ghost wide" id="gsave">Save and reload</button></details></div></div>`;
+      <button class="btn ghost wide" id="gsave">Save and reload</button></details>`:''}</div></div>`;
   $('#gsave').onclick=()=>{S.settings.api=$('#gapi').value.trim();cache.set(S);location.reload();};
   $('#gsign').onclick=signIn;
   ['gp','gp2','gu','gn'].forEach(i=>{const el=$('#'+i);el&&(el.onkeydown=e=>{if(e.key==='Enter')signIn();});});
