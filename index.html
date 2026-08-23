@@ -501,7 +501,7 @@ function gate(err){
       <summary class="eyebrow">Advanced: point this device at a different Sheet</summary>
       <label class="f" style="margin-top:9px"><span>Apps Script web app URL</span><input id="gapi" value="${esc(S.settings.api||'')}"></label>
       <button class="btn ghost wide" id="gsave">Save and reload</button></details>`:''}</div></div>`;
-  $('#gsave').onclick=()=>{S.settings.api=$('#gapi').value.trim();cache.set(S);location.reload();};
+  const gsave=$('#gsave');gsave&&(gsave.onclick=()=>{S.settings.api=$('#gapi').value.trim();cache.set(S);location.reload();});
   $('#gsign').onclick=signIn;
   ['gp','gp2','gu','gn'].forEach(i=>{const el=$('#'+i);el&&(el.onkeydown=e=>{if(e.key==='Enter')signIn();});});
   const f=$(local?(first?'#gn':'#gp'):'#gu');f&&f.focus();
