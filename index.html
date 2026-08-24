@@ -1140,11 +1140,13 @@ function openLead(id){
       <div class="row"><label class="f"><span>Phone</span><input data-ed="phone" value="${esc(l.phone||'')}" inputmode="tel"></label>
         <label class="f"><span>Alternate number</span><input data-ed="altPhone" value="${esc(l.altPhone||'')}" inputmode="tel" placeholder="optional"></label></div>
       <div class="row"><label class="f"><span>Email</span><input data-ed="email" value="${esc(l.email||'')}" inputmode="email"></label></div>
-      <div class="row"><label class="f"><span>Business name</span><input data-ed="company" value="${esc(l.company||'')}"></label>
-        <label class="f"><span>City</span><input data-ed="city" value="${esc(l.city||'')}"></label>
-        <label class="f"><span>State (for GST)</span><input data-ed="state" value="${esc(l.state||'')}"></label></div>
-      <div class="row"><label class="f"><span>Their GSTIN</span><input data-ed="gstin" value="${esc(l.gstin||'')}"></label>
+      <div class="row"><label class="f"><span>Business name</span><input data-ed="company" value="${esc(l.company||'')}" placeholder="Printed as the client name on invoices"></label>
         <label class="f"><span>Bill from</span><select data-ed="companyId">${S.companies.map(c=>`<option value="${c.id}"${l.companyId===c.id?' selected':''}>${esc(c.name)}</option>`).join('')}</select></label></div>
+      <label class="f"><span>Billing address</span><input data-ed="addr" value="${esc(l.addr||'')}" placeholder="Street, area"></label>
+      <div class="row"><label class="f"><span>City</span><input data-ed="city" value="${esc(l.city||'')}"></label>
+        <label class="f"><span>State (for GST)</span><input data-ed="state" value="${esc(l.state||'')}"></label>
+        <label class="f"><span>PIN code</span><input data-ed="pin" value="${esc(l.pin||'')}" inputmode="numeric" maxlength="6"></label></div>
+      <label class="f"><span>Their GSTIN</span><input data-ed="gstin" value="${esc(l.gstin||'')}"></label>
       <label class="f"><span>Notes</span><textarea data-ed="notes" rows="3">${esc(l.notes||'')}</textarea></label></div>
     <div class="card"><h2>Log a call</h2>
       <div class="row"><select id="logType"><option>Call</option><option>WhatsApp</option><option>Email</option><option>Meeting</option><option>Note</option></select>
@@ -1757,7 +1759,12 @@ function printInvoice(invId){
   .sig img{max-width:190px}
   .bottomband{background:${b.brand};height:8px;margin-top:16px}
   .annexpage{page-break-before:always;padding-top:30px}
-  @media print{.page{padding:14px 18px}}
+  *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important}
+  @media print{
+    @page{margin:0;size:auto}
+    body{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+    .page{padding:14px 18px;max-width:none}
+  }
   </style>
   <div class="page">
     <div class="strip">${i.type==='tax'?'TAX INVOICE':'PROFORMA INVOICE'} - CUSTOMER COPY</div>
@@ -1768,7 +1775,7 @@ function printInvoice(invId){
       <tr><td>${esc(i.quotationId||'—')}</td><td>${esc(l.company||l.name||'—')}</td><td>${esc(l.gstin||'—')}</td></tr>
       <tr><th>${numLabel}</th><th>Contact Number</th><th>Date</th></tr>
       <tr><td>${esc(i.number)}</td><td>${esc(l.phone||'—')}</td><td>${fmtD(i.date)}</td></tr></table>
-    <div class="addr"><b>Address</b>${esc(l.company?l.name+', ':'')}${esc(l.city?'':'')}${esc([l.notes,l.city,l.state].filter(Boolean).join(', ')||l.city||'—')}</div>
+    <div class="addr"><b>Address</b>${esc([l.name!==l.company?l.name:'',l.addr,l.city,l.state,l.pin].filter(Boolean).join(', ')||'—')}</div>
     <table class="items"><thead><tr><th>Particulars</th><th class="c">SAC Code</th><th class="c">Qty,</th><th class="r">Price</th><th class="r">Amount</th></tr></thead>
       <tbody>${rows}</tbody></table>
     <table class="sums">
@@ -2249,9 +2256,9 @@ function drawAudit(){
 
 /* ---------- export ---------- */
 const sheetRows=()=>({
-  Leads:[['S.No','Customer ID','ID','Tag','Name','Phone','Email','Business','Source','Services','Quoted','Stage','Work','Score','Assigned to','Assigned on','Added by','Added on','Balance','Payment issue','Latest update','Updates']]
+  Leads:[['S.No','Customer ID','ID','Tag','Name','Phone','Email','Business','Address','City','State','PIN','GSTIN','Source','Services','Quoted','Stage','Work','Score','Assigned to','Assigned on','Added by','Added on','Balance','Payment issue','Latest update','Updates']]
     .concat(S.leads.map((l,ix)=>{const u=(l.statusUpdates||[]).slice(-1)[0];
-      return [ix+1,l.customerId||'',l.id,l.tag||'GSS',l.name,l.phone||'',l.email||'',l.company||'',l.source||'',
+      return [ix+1,l.customerId||'',l.id,l.tag||'GSS',l.name,l.phone||'',l.email||'',l.company||'',l.addr||'',l.city||'',l.state||'',l.pin||'',l.gstin||'',l.source||'',
         (l.services||[]).map(s=>s.code+'@'+(s.rate||0)).join(' + '),leadFee(l),l.stage,isProject(l)?l.work:'',score(l),
         nameOf(l.assignedTo),(l.assignedAt||'').slice(0,10),nameOf(l.owner),l.createdAt.slice(0,10),
         isProject(l)?leadBalance(l.id):'',l.paymentIssue?(l.issueNote||'yes'):'',u?u.text:'',(l.statusUpdates||[]).length];})),
@@ -2480,7 +2487,7 @@ function customerLeads(customerId){return S.leads.filter(l=>l.customerId===custo
 function customerInvoices(customerId){const ids=customerLeads(customerId).map(l=>l.id);return S.invoices.filter(i=>ids.includes(i.leadId));}
 function customerPayments(customerId){const ids=customerLeads(customerId).map(l=>l.id);return S.payments.filter(p=>ids.includes(p.leadId));}
 function newLead(o){
-  return Object.assign({id:uid('ld'),name:'',phone:'',altPhone:'',email:'',company:'',city:'',state:'',gstin:'',source:'Other',tag:'GSS',
+  return Object.assign({id:uid('ld'),name:'',phone:'',altPhone:'',email:'',company:'',addr:'',city:'',state:'',pin:'',gstin:'',source:'Other',tag:'GSS',
     customerId:'',services:[],fees:0,stage:'New',work:'Not started',workAssignees:[],statusUpdates:[],docs:[],notes:'',logs:[],followUp:'',dueDate:'',
     assignedTo:me?me.username:'',assignedBy:me?me.username:'',assignedAt:new Date().toISOString(),paymentIssue:false,companyId:S.companies[0].id,owner:me?me.username:'',
     createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),lastTouch:''},o);
