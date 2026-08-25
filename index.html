@@ -1537,13 +1537,16 @@ function editInvoice(id,seed){
   const draw2=()=>{
     const t=invTotals(inv);
     const l=leadOf(inv.leadId),paid=paidOn(inv.id),co=coOf(inv.companyId);
-    layer(`<div class="dhead"><div style="flex:1"><div class="eyebrow">${inv.type==='tax'?'Tax invoice':'Proforma invoice'} · Quotation ID ${esc(inv.quotationId||'—')}</div>
+    layer(`<div class="dhead"><div style="flex:1"><div class="eyebrow">${inv.type==='tax'?'Tax invoice':'Proforma invoice'} · Customer ID ${esc(l&&l.customerId||'—')}</div>
       <h1 style="font-size:19px" class="mono">${esc(inv.number)}</h1><div class="sub">${esc(l?l.name:'No client linked')}</div></div>
       <button class="x" data-close>✕</button></div>
     <div class="dbody">
       <div class="card"><div class="row">
         <label class="f"><span>Bill from (company)</span><select id="ico">${S.companies.map(c=>`<option value="${c.id}"${inv.companyId===c.id?' selected':''}>${esc(c.name)}</option>`).join('')}</select></label>
         <label class="f"><span>Bill to</span><select id="ilead"><option value="">— none —</option>${S.leads.map(x=>`<option value="${x.id}"${inv.leadId===x.id?' selected':''}>${esc(x.name)}</option>`).join('')}</select></label></div>
+        <label class="f"><span>Client business name (this is what prints as "Name" on the document)</span>
+          <input id="iclientco" value="${esc(l?l.company||'':'')}" placeholder="${l?esc(l.name):'Leave blank to print the contact name instead'}"></label>
+        ${l&&!(l.company&&l.company.trim())?`<div class="eyebrow" style="color:var(--warn);margin:-4px 0 8px">No business name on file — "${esc(l.name)}" will print as the Name instead. Fill this in if this client has a company/business name.</div>`:''}
         <div class="eyebrow" style="margin:-2px 0 8px">${esc(co.gstin||'no GSTIN set')} · ${esc(co.addr||'no address set')}${co.city?', '+esc(co.city):''} · <a href="#" data-editco="${co.id}">edit company details</a></div>
         <div class="row"><label class="f"><span>Quotation ID</span><input value="${esc(inv.quotationId||'')}" id="iqid" class="mono"></label>
         <label class="f"><span>${inv.type==='tax'?'Invoice no.':'Proforma invoice no.'}</span><input value="${esc(inv.number)}" disabled class="mono" style="opacity:.7"></label>
@@ -1599,6 +1602,7 @@ function editInvoice(id,seed){
         <button class="btn sm ghost" data-rmpay="${p.id}" style="flex:0 0 auto">Remove</button></div>`).join('')}</div>`:''}
       ${isNew?'':`<button class="btn ghost wide" id="delInv" style="color:var(--bad)">Delete invoice</button>`}</div>`,()=>{});
     const pull=()=>{inv.companyId=$('#ico').value;inv.leadId=$('#ilead').value;inv.quotationId=$('#iqid').value.trim();
+      const cc=$('#iclientco');if(cc&&inv.leadId){const l2=leadOf(inv.leadId);if(l2)l2.company=cc.value.trim();}
       inv.date=$('#idate').value;inv.dueDate=$('#idue').value;
       inv.taxMode=$('#itax').value;inv.gstOn=inv.taxMode!=='none';inv.igst=inv.taxMode==='igst';
       if(inv.taxMode!=='none'){const gr=$('#igstr');if(gr)inv.gstRate=Number(gr.value)||0;}
@@ -1606,7 +1610,7 @@ function editInvoice(id,seed){
       inv.notes=$('#inote').value;inv.terms=$('#iterms').value;
       document.querySelectorAll('[data-it]').forEach(el=>{const it=inv.items[+el.dataset.it];if(!it)return;
         if(['qty','rate'].includes(el.dataset.k))it[el.dataset.k]=Number(el.value)||0;else it[el.dataset.k]=el.value;});};
-    document.querySelectorAll('#itax,#igstr,#idiscMode,#idisc,[data-it]').forEach(el=>el.onchange=()=>{pull();draw2();});
+    document.querySelectorAll('#itax,#igstr,#idiscMode,#idisc,#iclientco,[data-it]').forEach(el=>el.onchange=()=>{pull();draw2();});
     $('#addItem').onclick=()=>{pull();inv.items.push({desc:'Business Services',name:'',hsn:'9985',qty:1,rate:0,annexure:''});draw2();};
     document.querySelectorAll('[data-rm]').forEach(b=>b.onclick=()=>{pull();inv.items.splice(+b.dataset.rm,1);draw2();});
     document.querySelectorAll('[data-annex]').forEach(b=>b.onclick=()=>{pull();editAnnexure(inv,+b.dataset.annex,draw2);});
@@ -1894,12 +1898,12 @@ function printInvoice(invId){
   }
   </style>
   <div class="page">
-    <div class="strip">${i.type==='tax'?'TAX INVOICE':'PROFORMA INVOICE'} - CUSTOMER COPY</div>
+    <div class="strip">${i.type==='tax'?'TAX INVOICE':'PROFORMA INVOICE'} - CUSTOMER COPY${i.quotationId?' · Ref: '+esc(i.quotationId):''}</div>
     <div class="hd"><img src="${LOGO}"><h1>${docLabel}</h1></div>
     <div class="band">${esc(co.gstin||'')}</div>
     <div class="band" style="background:#f2f2f2;color:#333;font-size:11px">${esc(co.addr||'')}${co.city?', '+esc(co.city):''}</div>
-    <table class="meta"><tr><th>${i.type==='tax'?'Quotation ID':'Quotation ID'}</th><th>Name</th><th>GSTIN</th></tr>
-      <tr><td>${esc(i.quotationId||'—')}</td><td>${esc(l.company||l.name||'—')}</td><td>${esc(l.gstin||'—')}</td></tr>
+    <table class="meta"><tr><th>Customer ID</th><th>Name</th><th>GSTIN</th></tr>
+      <tr><td>${esc(l.customerId||'—')}</td><td>${esc((l.company&&l.company.trim())||l.name||'—')}</td><td>${esc(l.gstin||'—')}</td></tr>
       <tr><th>${numLabel}</th><th>Contact Number</th><th>Date</th></tr>
       <tr><td>${esc(i.number)}</td><td>${esc(l.phone||'—')}</td><td>${fmtD(i.date)}</td></tr></table>
     <div class="addr"><b>Address</b>${esc([l.name!==l.company?l.name:'',l.addr,l.city,l.state,l.pin].filter(Boolean).join(', ')||'—')}</div>
@@ -1919,7 +1923,15 @@ function printInvoice(invId){
     <div class="words">Amount in words: ${words(t.total)}</div>
     <div class="foot">
       <div class="bank">${co.acName?'Account : '+esc(co.acName)+'<br>':''}${co.acNo?'Bank Account Number : '+esc(co.acNo)+'<br>':''}${co.ifsc?'IFSC Code : '+esc(co.ifsc)+'<br>':''}${co.bank?'Bank: '+esc(co.bank)+'<br>':''}
-        <div class="terms"><b>${i.notes?esc(i.notes)+'<br>':''}Other Terms &amp; Conditions</b><br>${esc(i.terms||co.terms||'').split('\n').map((x,n)=>x.trim()?`${n+1}) ${esc(x.replace(/^\d+\)\s*/,''))}`:'').filter(Boolean).join('<br>')}</div></div>
+        <div class="terms"><b>${i.notes?esc(i.notes)+'<br>':''}Other Terms &amp; Conditions</b><br>${(()=>{
+          // Use the invoice's own terms if it has ANY text at all (including a deliberately edited
+          // single line) — only fall back to the company default when terms was never set. This
+          // must not silently swap in the default just because the field is present-but-different
+          // from what a previous invoice had.
+          const raw=(typeof i.terms==='string'&&i.terms.trim())?i.terms:(co.terms||'');
+          return raw.split('\n').map(x=>x.trim()).filter(Boolean)
+            .map(x=>esc(x.replace(/^\d+\)\s*/,''))).map((x,n)=>`${n+1}) ${x}`).join('<br>');
+        })()}</div></div>
       <div class="sig"></div>
     </div>
     <div class="bottomband"></div>
@@ -2716,4 +2728,4 @@ function newLead(o){
     createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),lastTouch:''},o);
 }
 </script>
-</body></html>  
+</body></html>
