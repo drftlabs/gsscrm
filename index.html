@@ -109,6 +109,28 @@ tr.click:hover{background:linear-gradient(90deg,var(--brand-soft),#FAF8FD);curso
 .lead:hover{box-shadow:var(--shadow-lift);transform:translateY(-1px)}
 .lead.mine{border-left:3px solid var(--brand);background:linear-gradient(90deg,var(--brand-soft) 0%,var(--card) 3%)}
 .lead.dead{opacity:.62}
+.lead.pri{border-left:3px solid var(--accent)}
+.lead.compact{padding:9px 11px}
+.chd{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.pribox{display:inline-flex;align-items:center;cursor:pointer;flex:0 0 auto}
+.pribox input{width:15px;height:15px;accent-color:var(--accent);cursor:pointer;margin:0}
+.cname{font-size:14px;cursor:pointer;flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:180px}
+.cmoney{margin-left:auto;font-family:var(--mono);font-weight:700;font-size:13px;white-space:nowrap}
+.cmeta{display:flex;gap:9px;flex-wrap:wrap;font-size:11px;color:var(--muted);margin-top:4px;line-height:1.5}
+.cmeta span{white-space:nowrap;display:inline-flex;align-items:center;gap:3px}
+.cmeta .warn{color:var(--warn);font-weight:600}
+.next.sm{margin-top:5px;font-size:12px;padding:4px 8px}
+.lead.compact .qa{margin-top:7px;gap:5px}
+.lead.compact .qa a,.lead.compact .qa button{padding:5px 9px;font-size:12px}
+.lead.compact .qa a.call,.lead.compact .qa a.wa{padding:5px 8px}
+.lead.compact .qa select.sm{min-width:100px;padding:5px 8px;font-size:12px}
+.pill.sm{font-size:9.5px;padding:2px 6px}
+.more{margin-top:6px}
+.more summary{cursor:pointer;padding:4px 0;list-style:none}
+.more summary::-webkit-details-marker{display:none}
+.more summary:before{content:'▸ ';display:inline-block;transition:transform .15s}
+.more[open] summary:before{transform:rotate(90deg)}
+.more[open] .assign,.more[open] .latest,.more[open] .statusline{margin-top:8px}
 .lead .hd{display:flex;gap:10px;align-items:flex-start}
 .lead .nm{flex:1;min-width:0}
 .lead .nm b{font-size:15.5px}
@@ -175,7 +197,11 @@ tr.click:hover{background:linear-gradient(90deg,var(--brand-soft),#FAF8FD);curso
 .kan .mini b{display:block;font-size:13.5px}
 .toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--brand-dark);color:#fff;padding:11px 16px;border-radius:99px;z-index:60;font-size:13.5px;box-shadow:var(--shadow);opacity:0;pointer-events:none;transition:opacity .18s}
 .toast.on{opacity:1}
-.mobnav{display:none}
+.hamburger{display:none;position:fixed;top:12px;left:12px;z-index:35;width:42px;height:42px;border-radius:11px;border:0;
+  background:linear-gradient(155deg,var(--brand),var(--brand-dark));box-shadow:0 3px 10px -2px rgba(42,6,96,.5);
+  flex-direction:column;align-items:center;justify-content:center;gap:4px;cursor:pointer}
+.hamburger span{display:block;width:19px;height:2px;background:#fff;border-radius:2px}
+.mobonly{display:none}
 .itemrow{display:grid;grid-template-columns:1fr 58px 92px 30px;gap:6px;margin-bottom:6px}
 .svcrow{display:grid;grid-template-columns:1fr 106px 30px;gap:6px;margin-bottom:6px;align-items:center}
 .svcitem{border:1px solid var(--line);border-radius:12px;padding:10px;margin-bottom:8px;background:linear-gradient(165deg,#FAFAFC,#F5F3FA);box-shadow:0 1px 2px rgba(20,32,43,.03)}
@@ -196,18 +222,16 @@ details.help summary{cursor:pointer;font-weight:600}
 .dot{display:inline-block;width:7px;height:7px;border-radius:99px;background:var(--green);margin-right:5px;box-shadow:0 0 0 3px rgba(14,205,127,.18)}
 .dot.off{background:var(--muted);box-shadow:none}.dot.err{background:var(--pink);box-shadow:0 0 0 3px rgba(240,24,72,.18)}
 @media(max-width:820px){
-  .side{display:none}
-  .main{padding:12px 12px 96px}
-  .mobnav{display:flex;position:fixed;left:0;right:0;bottom:0;background:linear-gradient(0deg,var(--brand-dark),#20063E);z-index:30;padding:6px 2px calc(6px + env(safe-area-inset-bottom));overflow-x:auto;box-shadow:0 -6px 20px -8px rgba(0,0,0,.4)}
-  .mobnav button{flex:1 0 19%;background:none;border:0;color:#9A8CC0;font-size:9.5px;font-family:var(--sans);font-weight:600;padding:6px 2px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;transition:color .15s}
-  .mobnav button .ic{display:inline-flex;opacity:.85}
-  .mobnav button.on{color:var(--accent)}
-  .mobnav button.on .ic{opacity:1}
+  .hamburger{display:flex}
+  .side{position:fixed;top:0;left:0;bottom:0;z-index:36;width:250px;transform:translateX(-105%);transition:transform .22s ease;box-shadow:none}
+  .side.open{transform:translateX(0);box-shadow:16px 0 40px -20px rgba(0,0,0,.6)}
+  .mobonly.open{display:block;position:fixed;inset:0;z-index:34}
+  .main{padding:60px 12px 24px}
   h1{font-size:19px}
   .bar .b{grid-template-columns:92px 1fr 54px}
   .funnel .f{grid-template-columns:96px 1fr}
 }
-@media print{body{background:#fff}.side,.mobnav,.topbar,.dock{display:none}}
+@media print{body{background:#fff}.side,.hamburger,.topbar,.dock{display:none}}
 </style>
 <body>
 <div id="app"></div>
@@ -254,7 +278,11 @@ const OPEN_STAGES=['New','Contacted','Interested','Call Later','Quotation Sent']
 const DEAD=['Not Interested','Lost','Fake'];
 const LIVE=['Advance Paid','Completed'];
 const WORK=['Not started','In progress','Sent for review','Changes requested','Final delivered'];
-const PROB={'New':.05,'Contacted':.1,'Interested':.25,'Call Later':.15,'Quotation Sent':.45,'Advance Paid':.9,'Completed':1,'On Hold':.05,'Not Interested':0,'Lost':0,'Fake':0};
+// Forecast probabilities — only Interested and Quotation Sent leads are used for the
+// weighted pipeline forecast (per how the business actually qualifies a real chance of
+// closing). New/Contacted/Call Later carry no weight here — they're too early to forecast
+// against, even though they're still visible everywhere else as open leads.
+const PROB={'New':0,'Contacted':0,'Interested':.3,'Call Later':0,'Quotation Sent':.55,'Advance Paid':.9,'Completed':1,'On Hold':0,'Not Interested':0,'Lost':0,'Fake':0};
 const SOURCES=['Wix form','WhatsApp','Call','Referral','Instagram','Partner','Walk-in','CSV import','Other'];
 const MODES=['UPI','Bank transfer','Cash','Cheque','Card','Other'];
 const TAGS=['GSS','PYCM','NC'];
@@ -322,7 +350,12 @@ const cache={
   set(d){try{if(window.localStorage)localStorage.setItem(KEY,JSON.stringify(d));}catch(e){}},
   tok(v){try{if(v===undefined)return sessionStorage.getItem(KEY+'-tok');v===null?sessionStorage.removeItem(KEY+'-tok'):sessionStorage.setItem(KEY+'-tok',v);}catch(e){}return null;},
   who(v){try{if(v===undefined){const w=sessionStorage.getItem(KEY+'-me');return w?JSON.parse(w):null;}
-    v===null?sessionStorage.removeItem(KEY+'-me'):sessionStorage.setItem(KEY+'-me',JSON.stringify(v));}catch(e){}return null;}
+    v===null?sessionStorage.removeItem(KEY+'-me'):sessionStorage.setItem(KEY+'-me',JSON.stringify(v));}catch(e){}return null;},
+  // A tiny separate flag (not part of S, so it's never pushed as real data) tracking whether
+  // this device has a change that hasn't been confirmed synced yet. Checked on boot so a
+  // pull never silently discards a save that was still in flight when the tab last closed.
+  unsynced(v){try{if(v===undefined)return localStorage.getItem(KEY+'-unsynced')==='1';
+    v?localStorage.setItem(KEY+'-unsynced','1'):localStorage.removeItem(KEY+'-unsynced');}catch(e){}return false;}
 };
 const COMMON_CO={trade:'Get Set Startup',addr:'E-207, Sector 63, Noida, Uttar Pradesh',city:'Noida',state:'Uttar Pradesh',stateCode:'09',
   email:'contact@getsetstartup.biz',phone:'7678541651',website:'getsetstartup.biz',
@@ -346,9 +379,12 @@ const DEFAULTS=()=>({
   leads:[],invoices:[],payments:[],tickets:[],audit:[],seq:{},team:[],tags:TAGS.slice(),expenses:[],sources:[],
   services:CATALOG.map(([code,name,rate])=>({code,name,rate})),
   companies:DEFAULT_COMPANIES(),
+  notices:[],
   settings:{api:'https://script.google.com/macros/s/AKfycbz-IkoDNv4iZbdYVBmjWIfmANROWoGUBVSyQr-MfonUIQ1CxUrygbr3B7FmAeH4YsMivw/exec',sheetUrl:'https://docs.google.com/spreadsheets/d/1BnjBv5c2x2bdKv50d985D_GVTU4NnEen_6MBKDn_-dY/edit',
     gstRate:18,dueDays:7,ownerName:'',ownerEmail:'',brand:PRESETS['Get Set Startup'],localHash:'',localSalt:'',localName:'Admin',
-    perms:{},targets:{},defaultTarget:0,defaultTerms:'1) Advance 50%\\n2) 25% on first draft, Balance 25% on completion\\n3) Delivery in approx. 10 working days(s)\\n4) 6 Months Support & Revision Period'}
+    perms:{},targets:{},defaultTarget:0,defaultTerms:'1) Advance 50%\\n2) 25% on first draft, Balance 25% on completion\\n3) Delivery in approx. 10 working days(s)\\n4) 6 Months Support & Revision Period',
+    stageOrder:OPEN_STAGES.slice(),customStages:[],
+    logTypes:['Call','WhatsApp','Email','Meeting','Note'],logOutcomes:['Connected','No answer','Interested','Asked to call later','Not interested','—']}
 });
 let S=DEFAULTS(),route='dash',me=null,syncState='off',lastSync='';
 
@@ -361,17 +397,38 @@ async function api(action,payload){
   if(j.authRequired){me=null;cache.tok(null);draw();throw new Error(j.error);}
   return j;
 }
-let pushTimer=null;
-function save(){S.updatedAt=new Date().toISOString();cache.set(S);
-  if(S.settings.api&&me){syncState='pending';paintSync();clearTimeout(pushTimer);pushTimer=setTimeout(pushNow,1200);}}
+let pushTimer=null,pushRetryTimer=null,pendingPush=false,pushAttempts=0;
+function save(){S.updatedAt=new Date().toISOString();cache.set(S);cache.unsynced(true);
+  if(S.settings.api&&me){pendingPush=true;syncState='pending';paintSync();
+    clearTimeout(pushTimer);clearTimeout(pushRetryTimer);pushAttempts=0;pushTimer=setTimeout(pushNow,1200);}}
 async function pushNow(){
   try{syncState='busy';paintSync();
     const r=await api('push',{data:S,tables:sheetRows()});
-    if(r.ok){syncState='ok';lastSync=new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});}
-    else{syncState='err';toast(r.error||'Sync failed');}
-  }catch(e){syncState='err';}
+    if(r.ok){syncState='ok';pendingPush=false;pushAttempts=0;cache.unsynced(false);lastSync=new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});}
+    else{scheduleRetry(r.error||'Sync failed');}
+  }catch(e){scheduleRetry('Could not reach the backend');}
   paintSync();
 }
+// A failed or unreachable sync must never be silently dropped — that's how leads were
+// disappearing: an unsynced change sat only in this browser's storage, and the next
+// sign-in anywhere (which does a full pull-and-replace) overwrote it for good. Retrying
+// with backoff, and flushing before the tab closes or backgrounds, closes that gap.
+function scheduleRetry(msg){
+  syncState='err';pushAttempts++;
+  if(pushAttempts<=6){ // back off: 3s, 6s, 12s, 24s, 48s, 96s, then stop auto-retrying but stay flagged
+    clearTimeout(pushRetryTimer);
+    pushRetryTimer=setTimeout(pushNow,Math.min(96000,3000*Math.pow(2,pushAttempts-1)));
+  }else{
+    toast('Could not sync — tap the sync status to retry. Your changes are safe on this device.');
+  }
+}
+function flushPendingSync(){
+  // Called when the tab is about to close/background/lose focus. If there's an unsynced
+  // change sitting behind the debounce timer, push it right now instead of losing it.
+  if(pendingPush&&S.settings.api&&me){clearTimeout(pushTimer);clearTimeout(pushRetryTimer);pushNow();}
+}
+window.addEventListener('beforeunload',flushPendingSync);
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')flushPendingSync();});
 function paintSync(){const el=$('#syncBadge');if(!el)return;
   const m={off:['off','This device only'],pending:['off','Saving…'],busy:['off','Syncing…'],ok:['','Synced '+lastSync],err:['err','Sync failed — tap to retry']}[syncState];
   el.innerHTML=`<span class="dot ${m[0]}"></span>${m[1]}`;}
@@ -386,6 +443,14 @@ function inboxBanner(){
     <div class="row" style="align-items:center">
       <div><b>${inbox.length} new lead${inbox.length>1?'s':''} waiting</b><div class="sub">Came in from your website form or another connected source.</div></div>
       <button class="btn gold" id="reviewInbox" style="flex:0 0 auto">Review &amp; add</button>
+    </div></div>`;
+}
+function syncWarningBanner(){
+  if(syncState!=='err'||!S.settings.api)return '';
+  return `<div class="card" style="border-left:3px solid var(--bad);margin-bottom:12px;background:linear-gradient(135deg,#fff,var(--bad-soft))">
+    <div class="row" style="align-items:center">
+      <div><b style="color:var(--bad)">Not synced to the server</b><div class="sub">Your changes are saved on this device, but haven't reached the shared Sheet yet. Don't sign out or close the tab until this clears.</div></div>
+      <button class="btn" id="retrySyncBanner" style="flex:0 0 auto">Retry now</button>
     </div></div>`;
 }
 function reviewInbox(){
@@ -443,6 +508,12 @@ function audit(what){
   migrate();applyBrand();
   if(S.settings.api&&cache.tok()){
     const keep=S.settings.api;
+    // If this device has changes that were never confirmed pushed (e.g. the tab was closed
+    // or lost connection before the sync completed), push those first — never let an
+    // incoming pull silently throw away data that only exists on this device.
+    if(cache.unsynced()){
+      try{await api('push',{data:S,tables:sheetRows()});cache.unsynced(false);}catch(e){}
+    }
     try{const r=await api('pull');
       if(r.ok){me=cache.who()||{name:'Signed in',username:'user',role:'staff'};
         if(r.data){S=Object.assign(DEFAULTS(),r.data);S.settings=Object.assign(DEFAULTS().settings,r.data.settings||{});}
@@ -462,6 +533,11 @@ function migrate(){
   if(!S.settings.api)S.settings.api=DEFAULT_API;
   S.expenses=S.expenses||[];
   S.sources=S.sources&&S.sources.length?S.sources:[{id:uid('src'),kind:'sheet',name:'Primary Google Sheet',url:S.settings.sheetUrl||''}];
+  S.notices=S.notices||[];
+  S.settings.stageOrder=S.settings.stageOrder&&S.settings.stageOrder.length?S.settings.stageOrder:OPEN_STAGES.slice();
+  S.settings.customStages=S.settings.customStages||[];
+  S.settings.logTypes=S.settings.logTypes&&S.settings.logTypes.length?S.settings.logTypes:['Call','WhatsApp','Email','Meeting','Note'];
+  S.settings.logOutcomes=S.settings.logOutcomes&&S.settings.logOutcomes.length?S.settings.logOutcomes:['Connected','No answer','Interested','Asked to call later','Not interested','—'];
   S.seq=S.seq||{};
   (S.leads||[]).forEach(l=>{
     l.statusUpdates=l.statusUpdates||[];l.work=l.work||'Not started';l.services=l.services||[];l.docs=l.docs||[];
@@ -472,8 +548,18 @@ function migrate(){
     if(l.tag&&!S.tags.includes(l.tag))S.tags.push(l.tag);
     if(!l.assignedTo){l.assignedTo=l.owner||'';l.assignedBy=l.owner||'';l.assignedAt=l.assignedAt||l.createdAt;}
   });
-  // backfill customer IDs for any lead that doesn't have one yet, matching by phone
-  (S.leads||[]).forEach(l=>{ if(!l.customerId) matchCustomerId(l); });
+  // One-time cleanup: any lead still carrying an old-format "CUSTxxxx" customer ID gets
+  // wiped so it's reassigned below in the new 507xxxxx format. Runs once — after this,
+  // every lead in the system will only ever have the new format.
+  if(!S.settings.custIdMigrated){
+    (S.leads||[]).forEach(l=>{ if(l.customerId&&/^CUST\d+$/.test(l.customerId)) l.customerId=''; });
+    S.settings.custIdMigrated=true;
+  }
+  // Backfill customer IDs for any lead that doesn't have one yet, matching by phone.
+  // Process oldest-first so repeat numbers link to whichever lead came first, and every
+  // lead — old or new — ends up with a proper 507xxxxx customer ID.
+  (S.leads||[]).slice().sort((a,b)=>a.createdAt.localeCompare(b.createdAt))
+    .forEach(l=>{ if(!l.customerId) matchCustomerId(l); });
   const have=new Set(S.services.map(s=>s.code));
   CATALOG.forEach(([code,name,rate])=>{if(!have.has(code))S.services.push({code,name,rate});});
 }
@@ -523,6 +609,7 @@ async function signIn(){
     const r=await api('login',{username:$('#gu').value.trim(),password:pass});
     if(!r.ok)return gate(r.error||'Could not sign in.');
     cache.tok(r.token);me={name:r.name,role:r.role,username:r.username};cache.who(me);
+    if(cache.unsynced()){try{await api('push',{data:S,tables:sheetRows()});cache.unsynced(false);}catch(e){}}
     const keep=S.settings.api,p=await api('pull');
     if(p.ok&&p.data){S=Object.assign(DEFAULTS(),p.data);S.settings=Object.assign(DEFAULTS().settings,p.data.settings||{});}
     S.settings.api=keep;migrate();syncState='ok';cache.set(S);applyBrand();await loadTeam();
@@ -559,21 +646,33 @@ const stagePill=s=>{const m={'New':'b','Contacted':'b','Interested':'g','Call La
   return `<span class="pill ${m[s]||'n'}">${esc(s)}</span>`;};
 
 /* ---------- scoring & next action ---------- */
+// Lead score ("hot meter") — deliberately NOT based on just having a phone number or being
+// freshly added. It's driven almost entirely by two things: how far the lead has actually
+// progressed (stage) and how much the deal is worth (value). A lead that's just been called
+// sits low; a lead that's interested, been quoted, or paid an advance climbs fast. This is
+// also what the pipeline forecast is built on, so the weighting has to reflect real intent,
+// not data-entry completeness.
 function score(l){
   if(DEAD.includes(l.stage))return 0;
-  let s=10;
-  if(l.phone)s+=22;if(l.email)s+=8;
-  if((l.services||[]).length)s+=14;
-  const f=leadFee(l);if(f>=50000)s+=20;else if(f>0)s+=12;
-  s+={'New':0,'Contacted':6,'Interested':16,'Call Later':10,'Quotation Sent':22,'Advance Paid':30,'Completed':30,'On Hold':0}[l.stage]||0;
+  const f=leadFee(l);
+  // Stage is the dominant signal — a wide spread so the meter has real range top to bottom.
+  const stageBase={'New':5,'Contacted':10,'Call Later':14,'Interested':35,'Quotation Sent':52,'Advance Paid':82,'Completed':90,'On Hold':8}[l.stage]??5;
+  let s=stageBase;
+  // Value only matters once there's a live quoted/billed amount — a call with no value attached
+  // shouldn't move the needle, but a high-value quotation should push it noticeably hotter.
+  if(f>0&&['Interested','Quotation Sent','Advance Paid','Completed'].includes(l.stage)){
+    if(f>=150000)s+=22;else if(f>=75000)s+=15;else if(f>=30000)s+=8;else if(f>0)s+=3;
+  }
+  // Recency is a small modifier, not the driver — a quiet quotation cools slightly, a very
+  // stale one cools more, but this alone can never make a bare New lead look hot.
   const quiet=days((l.lastTouch||l.createdAt).slice(0,10));
-  if(quiet<=2)s+=10;else if(quiet>14)s-=14;else if(quiet>7)s-=7;
-  if((l.statusUpdates||[]).length>2)s+=6;
-  if(['Referral','Partner'].includes(l.source))s+=8;else if(l.source==='Wix form')s+=4;
+  if(['Interested','Quotation Sent'].includes(l.stage)){
+    if(quiet>21)s-=12;else if(quiet>10)s-=6;else if(quiet<=2)s+=3;
+  }
   if(l.paymentIssue)s-=10;
   return Math.max(0,Math.min(100,Math.round(s)));
 }
-const band=n=>n>=70?['hot','Hot']:n>=40?['warm','Warm']:['cold','Cold'];
+const band=n=>n>=70?['hot','Hot']:n>=35?['warm','Warm']:['cold','Cold'];
 function nextAction(l){
   const quiet=days((l.lastTouch||l.createdAt).slice(0,10));
   if(l.paymentIssue)return 'Escalate the payment issue — call and agree a date';
@@ -600,7 +699,10 @@ function render(){
   const myDueToday=S.leads.filter(l=>l.assignedTo===me.username&&l.followUp&&l.followUp<=today()&&!DEAD.includes(l.stage)).length;
   const counts={leads:S.leads.filter(l=>OPEN_STAGES.includes(l.stage)).length,projects:S.leads.filter(isProject).length,
     team:myDueToday||'',tickets:openTk||'',invoices:S.invoices.length,money:alerts?'!':''};
-  $('#app').innerHTML=`<div class="shell"><nav class="side">
+  $('#app').innerHTML=`<div class="shell">
+  <button class="hamburger" id="hamburger" aria-label="Open menu"><span></span><span></span><span></span></button>
+  <div class="scrim mobonly" id="sideScrim" style="display:none"></div>
+  <nav class="side" id="sideNav">
     <img class="logo" src="${LOGO_UI}" alt="Get Set Startup"><div class="tagline">CRM · getsetstartup.biz</div>
     ${['dash','leads','projects','team','tickets','invoices','money','reports','services','settings']
       .filter(id=>canSee(id)).map(id=>nav(id,NAVICON[id],SECTIONS.find(s=>s[0]===id)[1],counts[id])).join('')}
@@ -609,16 +711,25 @@ function render(){
       <div id="syncBadge" style="margin:7px 0;cursor:pointer"></div>
       <button class="btn sm ghost" id="myProfile" style="width:100%;margin-bottom:6px">My profile</button>
       <button class="btn sm ghost" id="signout" style="width:100%">Sign out</button></div></nav>
-    <main class="main" id="view"></main></div>
-  <nav class="mobnav">${['dash','leads','projects','team','money','settings']
-    .filter(id=>canSee(id)).map(id=>`<button data-go="${id}" class="${route===id?'on':''}"><span class="ic">${NAVICON[id]}</span>${{dash:'Home',leads:'Leads',projects:'Work',team:'Team',money:'Money',settings:'Setup'}[id]}</button>`).join('')}</nav>`;
+    <main class="main" id="view"></main></div>`;
   $('#view').innerHTML={dash:vDash,leads:vLeads,projects:vProjects,team:vTeam,tickets:vTickets,invoices:vInvoices,money:vMoney,reports:vReports,services:vServices,settings:vSettings}[route]();
   paintSync();
   $('#signout').onclick=signOut;
   $('#myProfile').onclick=()=>editProfile(me.username);
   $('#syncBadge').onclick=()=>{if(S.settings.api&&me)pushNow();};
-  document.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>{route=b.dataset.go;render();window.scrollTo(0,0);});
+  const rsb=$('#retrySyncBanner');rsb&&(rsb.onclick=()=>{if(S.settings.api&&me)pushNow();});
+  document.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>{route=b.dataset.go;sideOpen=false;render();window.scrollTo(0,0);});
+  const ham=$('#hamburger');ham&&(ham.onclick=()=>{sideOpen=!sideOpen;paintSideOpen();});
+  const scrim=$('#sideScrim');scrim&&(scrim.onclick=()=>{sideOpen=false;paintSideOpen();});
+  paintSideOpen();
   wire();
+}
+let sideOpen=false;
+function paintSideOpen(){
+  const sn=$('#sideNav'),sc=$('#sideScrim');
+  if(sn)sn.classList.toggle('open',sideOpen);
+  if(sc)sc.classList.toggle('open',sideOpen);
+  if(sc)sc.style.display=sideOpen?'block':'none';
 }
 const nav=(id,ic,label,badge)=>`<button class="navbtn ${route===id?'on':''}" data-go="${id}"><span class="ic">${ic}</span>${label}${badge?`<span class="k">${badge}</span>`:''}</button>`;
 const kpi=(l,v,s,c)=>`<div class="kpi ${c||''}"><div class="eyebrow">${l}</div><div class="v">${v}</div><small>${s}</small></div>`;
@@ -723,7 +834,8 @@ function rowMini(x,note){
 function vDash(){
   const L=S.leads,mine=L.filter(x=>x.assignedTo===me.username&&OPEN_STAGES.includes(x.stage));
   const openL=L.filter(x=>OPEN_STAGES.includes(x.stage));
-  const forecast=openL.reduce((s,l)=>s+leadFee(l)*(PROB[l.stage]||0),0);
+  const forecastable=L.filter(l=>['Interested','Quotation Sent'].includes(l.stage));
+  const forecast=forecastable.reduce((s,l)=>s+leadFee(l)*(PROB[l.stage]||0),0);
   const got=recognisedIn(month()),tgt=targetOf(month());
   const pending=L.filter(isProject).reduce((s,l)=>s+leadBalance(l.id),0);
   const hot=L.filter(l=>OPEN_STAGES.includes(l.stage)).map(l=>({l,s:score(l)})).sort((a,b)=>b.s-a.s).slice(0,6);
@@ -756,7 +868,7 @@ function vDash(){
     ['Completed (won)',L.filter(l=>l.stage==='Completed').length],
     ['Lost / not interested',L.filter(l=>['Lost','Not Interested'].includes(l.stage)).length]];
 
-  return `${inboxBanner()}<div class="topbar"><div><h1>Hello, ${esc((me.name||'').split(' ')[0])}</h1>
+  return `${syncWarningBanner()}${inboxBanner()}<div class="topbar"><div><h1>Hello, ${esc((me.name||'').split(' ')[0])}</h1>
     <p class="sub">${new Date().toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long'})} · ${mine.length} open leads with you</p></div>
     <div class="spacer"></div><button class="btn gold" data-go="leads">+ Add leads</button></div>
   <div class="card" style="margin-bottom:12px"><h2>This month's target</h2>
@@ -807,13 +919,15 @@ const filtMine=l=>!me||l.assignedTo===me.username||perms()==='ADMIN';
 const scorePill=l=>{const n=score(l),b=band(n);return `<span class="score ${b[0]}">${b[1]} ${n}</span>`;};
 
 /* ---------- leads ---------- */
-let filt={q:'',stage:'',svc:'',assignee:'all',sort:'assigned',source:'',tag:'',showDead:false};
+let filt={q:'',stage:'',svc:'',assignee:'all',sort:'assigned',source:'',tag:'',showDead:false,priority:false,uncalled:false};
 function leadRows(scope){
   let rows=S.leads.filter(l=>scope==='projects'?isProject(l):!isProject(l));
   const q=filt.q.toLowerCase();
-  rows=rows.filter(l=>(!q||[l.name,l.phone,l.email,leadSvcNames(l),l.company].join(' ').toLowerCase().includes(q))
+  rows=rows.filter(l=>(!q||[l.name,l.phone,l.email,l.customerId,leadSvcNames(l),l.company].join(' ').toLowerCase().includes(q))
     &&(!filt.stage||l.stage===filt.stage)&&(!filt.source||l.source===filt.source)&&(!filt.tag||l.tag===filt.tag)
     &&(!filt.svc||(l.services||[]).some(s=>s.code===filt.svc))
+    &&(!filt.priority||l.priority)
+    &&(!filt.uncalled||(l.stage==='New'&&!(l.logs||[]).some(x=>x.type==='Call')))
     &&(filt.showDead||filt.stage?true:!DEAD.includes(l.stage))
     &&(filt.assignee==='all'?true:filt.assignee==='none'?!l.assignedTo:(!filt.assignee||l.assignedTo===filt.assignee)));
   const k={assigned:(a,b)=>String(b.assignedAt||'').localeCompare(String(a.assignedAt||'')),
@@ -823,59 +937,70 @@ function leadRows(scope){
     name:(a,b)=>a.name.localeCompare(b.name),
     value:(a,b)=>leadFee(b)-leadFee(a),
     service:(a,b)=>leadSvcNames(a).localeCompare(leadSvcNames(b))}[filt.sort];
-  return rows.sort(k);
+  return rows.sort((a,b)=>(b.priority?1:0)-(a.priority?1:0)||k(a,b));
 }
 const lastUpd=l=>{const u=(l.statusUpdates||[]);return u.length?u[u.length-1].at:l.createdAt;};
 function filterBar(){
   const cnt=u=>S.leads.filter(l=>l.assignedTo===u&&!DEAD.includes(l.stage)).length;
   return `<div class="row" style="margin:12px 0 10px">
-    <input id="fq" placeholder="Search name, phone, service…" value="${esc(filt.q)}">
+    <input id="fq" placeholder="Search name, phone, customer ID, service…" value="${esc(filt.q)}">
     <select id="fass"><option value="all"${filt.assignee==='all'?' selected':''}>Everyone (${S.leads.filter(l=>!DEAD.includes(l.stage)).length})</option>
       <option value="none"${filt.assignee==='none'?' selected':''}>Unassigned (${S.leads.filter(l=>!l.assignedTo&&!DEAD.includes(l.stage)).length})</option>
       ${team().map(t=>`<option value="${esc(t.username)}"${filt.assignee===t.username?' selected':''}>${esc(t.name)} (${cnt(t.username)})${t.username===me.username?' ★':''}</option>`).join('')}</select>
     <select id="ftag"><option value="">All tags</option>${S.tags.map(t=>`<option${filt.tag===t?' selected':''}>${esc(t)}</option>`).join('')}</select>
-    <select id="fstage"><option value="">All stages</option>${STAGES.map(s=>`<option${filt.stage===s?' selected':''}>${s}</option>`).join('')}</select>
+    <select id="fstage"><option value="">All stages</option>${STAGES.concat(S.settings.customStages||[]).map(s=>`<option${filt.stage===s?' selected':''}>${s}</option>`).join('')}</select>
     <select id="fsvc"><option value="">All services</option>${S.services.map(s=>`<option value="${s.code}"${filt.svc===s.code?' selected':''}>${esc(s.name)}</option>`).join('')}</select>
     <select id="fsort">${[['assigned','Latest assigned'],['updated','Latest update'],['score','Hottest first'],['newest','Newest added'],['name','Name A–Z'],['value','Highest value'],['service','Service']]
       .map(([v,t])=>`<option value="${v}"${filt.sort===v?' selected':''}>${t}</option>`).join('')}</select>
     <button class="btn sm ${filt.showDead?'':'ghost'}" id="fdead" style="flex:0 0 auto">${filt.showDead?'Hiding nothing':'Dropped hidden'}</button>
+    <button class="btn sm ${filt.priority?'gold':'ghost'}" id="fpriority" style="flex:0 0 auto">★ Priority</button>
+    <button class="btn sm ${filt.uncalled?'':'ghost'}" id="funcalled" style="flex:0 0 auto">New — not yet called</button>
   </div>`;
 }
 const STATUS_ACTIONS=['Contacted','Interested','Call Later','Quotation Sent','Advance Paid','On Hold','Not Interested','Fake','Lost','Completed'];
 function leadCard(l,sno){
   const u=(l.statusUpdates||[]).slice(-1)[0],mine=l.assignedTo===me.username,na=nextAction(l),dead=DEAD.includes(l.stage);
-  return `<div class="lead ${mine?'mine':''} ${dead?'dead':''}" data-card="${l.id}">
-    <div class="hd"><div class="nm">
-      ${sno?`<span class="sno">#${sno}</span>`:''}
-      <span class="pill tag">${esc(l.tag||'GSS')}</span> <b data-lead="${l.id}" style="cursor:pointer">${esc(l.name)}</b> ${stagePill(l.stage)} ${scorePill(l)}
-      <div class="eyebrow">${esc(l.phone||l.email||'no number')} · ${esc(l.customerId||'')} · ${esc(l.source||'—')}</div>
-      <div class="chips" style="margin-top:6px">${(l.services||[]).map(s=>`<span class="pill n">${esc(s.code)} ${s.rate?inr(s.rate):''}</span>`).join('')||'<span class="eyebrow">no service yet</span>'}</div>
-    </div><div style="text-align:right">
-      <div class="money">${leadFee(l)?inr(leadFee(l)):'—'}</div>
-      <div class="eyebrow" style="margin-top:3px">${fmtD(l.createdAt.slice(0,10))}${l.owner?' · '+esc(nameOf(l.owner)):''}</div>
-      ${l.followUp?`<div class="eyebrow" style="${l.followUp<=today()?'color:var(--bad)':''}">call ${fmtD(l.followUp)}</div>`:''}</div></div>
-    ${na?`<div class="next">→ ${esc(na)}</div>`:''}
-    <div class="qa">
-      ${l.phone?`<a class="call" href="${tel(l.phone)}">${ICON_CALL} Call</a><a class="wa" href="${wa(l.phone)}" target="_blank">${ICON_WA} WhatsApp</a>`:''}
-      ${dead?`<button class="tick on" data-restore="${l.id}">↺ Bring back</button>`:`
-      <button class="tick ${['Interested','Quotation Sent','Advance Paid','Completed'].includes(l.stage)?'on':''}" data-tick="${l.id}">✓ Interested</button>
-      <button class="cross ${l.stage==='Not Interested'?'on':''}" data-cross="${l.id}">✕ Not interested</button>`}
-      <select data-status="${l.id}"><option value="">Change status…</option>${STATUS_ACTIONS.map(s=>`<option${l.stage===s?' selected':''}>${s}</option>`).join('')}</select>
-      <button data-lead="${l.id}">Open</button>
+  return `<div class="lead compact ${mine?'mine':''} ${dead?'dead':''} ${l.priority?'pri':''}" data-card="${l.id}">
+    <div class="chd">
+      <label class="pribox" title="Mark as priority"><input type="checkbox" data-pri="${l.id}" ${l.priority?'checked':''}></label>
+      <span class="pill tag sm">${esc(l.tag||'GSS')}</span>
+      <b data-lead="${l.id}" class="cname" style="cursor:pointer">${sno?`<span class="sno">#${sno}</span>`:''}${esc(l.name)}</b>
+      ${stagePill(l.stage)}${scorePill(l)}
+      <span class="cmoney">${leadFee(l)?inr(leadFee(l)):'—'}</span>
     </div>
-    <div class="assign">${l.assignedTo?avatar((S.team||[]).find(t=>t.username===l.assignedTo)||{name:nameOf(l.assignedTo)},22):''}<span class="eyebrow">Assigned to</span>
-      <select data-assign="${l.id}" ${can('assignAny')||!l.assignedTo||mine?'':'disabled'}>
-        <option value="">— nobody —</option>
-        ${team().map(t=>`<option value="${esc(t.username)}"${l.assignedTo===t.username?' selected':''}>${esc(t.name)}</option>`).join('')}</select>
-      ${l.assignedAt?`<span class="eyebrow">${ago(l.assignedAt)}${l.assignedBy?' by '+esc(nameOf(l.assignedBy)):''}</span>`:''}</div>
-    ${u?`<div class="latest"><span class="when">${ago(u.at)} · ${esc(nameOf(u.by))}</span><span>${esc(u.text)}</span></div>`:''}
-    <div class="statusline"><input data-su="${l.id}" placeholder="Add a status update, press enter…" autocomplete="off">
-      <button class="btn sm ghost" data-hist="${l.id}">History${(l.statusUpdates||[]).length?' ('+l.statusUpdates.length+')':''}</button></div>
+    <div class="cmeta">
+      <span>${esc(l.customerId||'—')}</span>
+      ${l.phone?`<span>${esc(l.phone)}</span>`:''}
+      ${(l.services||[]).length?`<span>${esc((l.services||[]).map(s=>s.code).join('+'))}</span>`:''}
+      <span>${fmtD(l.createdAt.slice(0,10))}</span>
+      ${l.assignedTo?`<span>${avatar((S.team||[]).find(t=>t.username===l.assignedTo)||{name:nameOf(l.assignedTo)},15)} ${esc(nameOf(l.assignedTo))}</span>`:'<span class="warn">unassigned</span>'}
+      ${l.followUp?`<span style="${l.followUp<=today()?'color:var(--bad);font-weight:600':''}">${AICON.clock} ${fmtD(l.followUp)}</span>`:''}
+    </div>
+    ${na?`<div class="next sm">→ ${esc(na)}</div>`:''}
+    <div class="qa">
+      ${l.phone?`<a class="call" href="${tel(l.phone)}" title="Call">${ICON_CALL}</a><a class="wa" href="${wa(l.phone)}" target="_blank" title="WhatsApp">${ICON_WA}</a>`:''}
+      ${dead?`<button class="tick on" data-restore="${l.id}" title="Bring back">↺</button>`:`
+      <button class="tick ${['Interested','Quotation Sent','Advance Paid','Completed'].includes(l.stage)?'on':''}" data-tick="${l.id}" title="Interested">✓</button>
+      <button class="cross ${l.stage==='Not Interested'?'on':''}" data-cross="${l.id}" title="Not interested">✕</button>`}
+      <select data-status="${l.id}" class="sm"><option value="">Status…</option>${STATUS_ACTIONS.map(s=>`<option${l.stage===s?' selected':''}>${s}</option>`).join('')}</select>
+      <button class="btn sm ghost" data-lead="${l.id}">Open</button>
+    </div>
+    <details class="more">
+      <summary class="eyebrow">More — assign, update, history${(l.statusUpdates||[]).length?' ('+l.statusUpdates.length+')':''}</summary>
+      <div class="assign">${l.assignedTo?avatar((S.team||[]).find(t=>t.username===l.assignedTo)||{name:nameOf(l.assignedTo)},22):''}<span class="eyebrow">Assigned to</span>
+        <select data-assign="${l.id}" ${can('assignAny')||!l.assignedTo||mine?'':'disabled'}>
+          <option value="">— nobody —</option>
+          ${team().map(t=>`<option value="${esc(t.username)}"${l.assignedTo===t.username?' selected':''}>${esc(t.name)}</option>`).join('')}</select>
+        ${l.assignedAt?`<span class="eyebrow">${ago(l.assignedAt)}${l.assignedBy?' by '+esc(nameOf(l.assignedBy)):''}</span>`:''}</div>
+      ${u?`<div class="latest"><span class="when">${ago(u.at)} · ${esc(nameOf(u.by))}</span><span>${esc(u.text)}</span></div>`:''}
+      <div class="statusline"><input data-su="${l.id}" placeholder="Add a status update, press enter…" autocomplete="off">
+        <button class="btn sm ghost" data-hist="${l.id}">Full history</button></div>
+    </details>
   </div>`;
 }
 function vLeads(){
   const rows=leadRows('leads');
-  return `${inboxBanner()}<div class="topbar"><div><h1>Leads</h1><p class="sub">${rows.length} shown · ${S.leads.length} on file</p></div></div>
+  return `${syncWarningBanner()}${inboxBanner()}<div class="topbar"><div><h1>Leads</h1><p class="sub">${rows.length} shown · ${S.leads.length} on file</p></div></div>
   <div class="dock"><div class="eyebrow">Paste dock</div>
     <textarea id="paste" placeholder="GSS Shivam Dubey PD FP 35k
 9118283905
@@ -1052,8 +1177,10 @@ function addUpdate(id,text,silent){
   const card=document.querySelector('[data-card="'+id+'"]');
   if(card){const line=card.querySelector('.latest');
     const html=`<span class="when">just now · ${esc(me.name)}</span><span>${esc(text.trim())}</span>`;
-    if(line)line.innerHTML=html;else card.querySelector('.statusline').insertAdjacentHTML('beforebegin',`<div class="latest">${html}</div>`);
-    const h=card.querySelector('[data-hist]');if(h)h.textContent='History ('+l.statusUpdates.length+')';}
+    if(line)line.innerHTML=html;else{const anchor=card.querySelector('.statusline')||card.querySelector('.assign');
+      if(anchor)anchor.insertAdjacentHTML('beforebegin',`<div class="latest">${html}</div>`);}
+    const sum=card.querySelector('.more summary');
+    if(sum)sum.textContent='More — assign, update, history ('+l.statusUpdates.length+')';}
   toast('Update saved');
 }
 function showHistory(id){
@@ -1119,7 +1246,7 @@ function openLead(id){
     <div class="card"><h2>Ownership &amp; stage</h2>
       <div class="row">
         <label class="f"><span>Assigned to</span><select id="dass">${'<option value="">— nobody —</option>'+team().map(t=>`<option value="${esc(t.username)}"${l.assignedTo===t.username?' selected':''}>${esc(t.name)}</option>`).join('')}</select></label>
-        <label class="f"><span>Stage</span><select data-ed="stage">${STAGES.map(s=>`<option${l.stage===s?' selected':''}>${s}</option>`).join('')}</select></label>
+        <label class="f"><span>Stage</span><select data-ed="stage">${STAGES.concat(S.settings.customStages||[]).map(s=>`<option${l.stage===s?' selected':''}>${s}</option>`).join('')}</select></label>
         <label class="f"><span>Tag</span><select data-ed="tag">${S.tags.map(t=>`<option${l.tag===t?' selected':''}>${esc(t)}</option>`).join('')}</select></label></div>
       <div class="row"><label class="f"><span>Next follow-up</span><input type="date" data-ed="followUp" value="${l.followUp||''}"></label>
         ${isProject(l)?`<label class="f"><span>Delivery due</span><input type="date" data-ed="dueDate" value="${l.dueDate||''}"></label>
@@ -1149,8 +1276,8 @@ function openLead(id){
       <label class="f"><span>Their GSTIN</span><input data-ed="gstin" value="${esc(l.gstin||'')}"></label>
       <label class="f"><span>Notes</span><textarea data-ed="notes" rows="3">${esc(l.notes||'')}</textarea></label></div>
     <div class="card"><h2>Log a call</h2>
-      <div class="row"><select id="logType"><option>Call</option><option>WhatsApp</option><option>Email</option><option>Meeting</option><option>Note</option></select>
-      <select id="logOut"><option>Connected</option><option>No answer</option><option>Interested</option><option>Asked to call later</option><option>Not interested</option><option>—</option></select></div>
+      <div class="row"><select id="logType">${(S.settings.logTypes||['Call','WhatsApp','Email','Meeting','Note']).map(t=>`<option>${esc(t)}</option>`).join('')}</select>
+      <select id="logOut">${(S.settings.logOutcomes||['Connected','No answer','Interested','Asked to call later','Not interested','—']).map(t=>`<option>${esc(t)}</option>`).join('')}</select></div>
       <label class="f" style="margin-top:8px"><span>Call notes</span><textarea id="logText" rows="3" placeholder="What was discussed, what they said, next step…"></textarea></label>
       <button class="btn wide" id="addLog">Save to log</button></div>
     <div class="card"><h2>Everything about this client</h2>
@@ -1805,6 +1932,33 @@ function printInvoice(invId){
 }
 /* ---------- analytics ---------- */
 /* ---------- team tab: everyone's leads, projects, payments in one place ---------- */
+let noticeCompose=false;
+function myNotices(){
+  return (S.notices||[]).filter(n=>n.to.includes(me.username)||n.to.includes('ALL'))
+    .sort((a,b)=>b.at.localeCompare(a.at));
+}
+function noticesCard(){
+  const mine=myNotices();
+  const canPost=can('manageUsers')||me.role==='admin';
+  return `<div class="card" style="margin-bottom:14px;border-left:3px solid var(--brand)">
+    <div class="row" style="align-items:center"><h2 style="margin:0;display:flex;align-items:center;gap:8px">${AICON.mail} Notices &amp; tasks</h2>
+      ${canPost?`<button class="btn sm ghost" id="postNotice" style="flex:0 0 auto;margin-left:auto">${noticeCompose?'Cancel':'+ Post a notice'}</button>`:''}</div>
+    ${noticeCompose&&canPost?`<div style="margin-top:10px">
+      <div class="chips" style="margin-bottom:8px">
+        <label class="checkline" style="display:inline-flex;margin-right:8px"><input type="checkbox" id="noticeAll"> Everyone</label>
+        ${team().map(t=>`<label class="checkline" style="display:inline-flex;margin-right:8px"><input type="checkbox" class="noticeTo" value="${esc(t.username)}"> ${esc(t.name)}</label>`).join('')}
+      </div>
+      <textarea id="noticeText" rows="2" placeholder="Short message or task — no subject needed, just say what needs to happen…" maxlength="400"></textarea>
+      <button class="btn wide" id="sendNotice" style="margin-top:8px">Post</button>
+    </div>`:''}
+    ${mine.length?mine.slice(0,10).map(n=>`<div class="row" style="align-items:flex-start;border-bottom:1px solid var(--line);padding:8px 0">
+      <div style="flex:2">${avatar((S.team||[]).find(t=>t.username===n.by)||{name:nameOf(n.by)},18)} <b>${esc(nameOf(n.by))}</b>
+        <span class="eyebrow">${ago(n.at)} · to ${n.to.includes('ALL')?'everyone':n.to.map(nameOf).join(', ')}</span>
+        <div style="margin-top:3px;font-size:13.5px">${esc(n.text)}</div></div>
+      ${n.by===me.username?`<button class="btn sm ghost" data-rmnotice="${n.id}" style="flex:0 0 auto">Remove</button>`:''}
+      </div>`).join(''):'<div class="empty" style="margin-top:8px">No notices right now.</div>'}
+  </div>`;
+}
 let teamFilt={person:''};
 function vTeam(){
   const L=S.leads,people=team();
@@ -1836,6 +1990,7 @@ function vTeam(){
       :myFollowUpsOverdue.length?'':'<div class="empty">Nothing due today.</div>'}
     ${myFollowUpsUpcoming.length?`<div class="eyebrow" style="margin:8px 0 4px">Next 7 days</div>${myFollowUpsUpcoming.map(x=>rowMini(x,fmtD(x.followUp))).join('')}`:''}
   </div>
+  ${noticesCard()}
   <div class="kpis">
     ${kpi('Team members',people.length,'active logins','hi')}
     ${kpi('Total leads',totalLeads,'across everyone')}
@@ -1890,7 +2045,8 @@ function vReports(){
     return p?days(l.createdAt.slice(0,10),p.date):null;}).filter(n=>n!=null&&n>=0);
   const velocity=cyc.length?Math.round(cyc.reduce((a,b)=>a+b,0)/cyc.length):0;
   const openL=L.filter(l=>OPEN_STAGES.includes(l.stage));
-  const weighted=openL.reduce((s,l)=>s+leadFee(l)*(PROB[l.stage]||0),0);
+  const forecastable=L.filter(l=>['Interested','Quotation Sent'].includes(l.stage));
+  const weighted=forecastable.reduce((s,l)=>s+leadFee(l)*(PROB[l.stage]||0),0);
   const last3=mo.slice(-3).map(m=>recognisedIn(m)),run=last3.reduce((a,b)=>a+b,0)/3;
   const avgRate={};L.forEach(l=>(l.services||[]).forEach(s=>{if(s.rate)(avgRate[s.name]=avgRate[s.name]||[]).push(s.rate);}));
   const tgt=targetOf(month()),got=recognisedIn(month()),cashIn=collectedIn(month()),dleft=Math.max(1,31-new Date().getDate());
@@ -1906,7 +2062,7 @@ function vReports(){
   <div class="card" style="margin-top:14px"><h2>Forecast</h2>
     <div class="row">
       <div><div class="eyebrow">Weighted pipeline</div><div class="num" style="font-size:20px;font-weight:600">${short(weighted)}</div>
-        <div class="sub">${openL.length} open leads, weighted by stage</div></div>
+        <div class="sub">${forecastable.length} interested + quoted leads, weighted by stage</div></div>
       <div><div class="eyebrow">3-month run rate</div><div class="num" style="font-size:20px;font-weight:600">${short(run)}</div>
         <div class="sub">average collected per month</div></div>
       <div><div class="eyebrow">Projected this month</div><div class="num" style="font-size:20px;font-weight:600">${short(got+weighted*0.35)}</div>
@@ -1915,8 +2071,18 @@ function vReports(){
         <div class="sub">${tgt?dleft+' days left in month':'set a target in Setup'}</div></div></div>
     <div class="target"><i style="width:${tgt?Math.min(100,got/tgt*100):0}%"></i></div>
     <div class="sub">${tgt?inr(got)+' of '+inr(tgt)+' recognised this month (full value of projects started) · '+inr(cashIn)+' actually collected':'No target set'}</div></div>
+  <div class="card" style="margin-top:12px"><h2>Most likely to convert</h2>
+    <p class="sub" style="margin-bottom:8px">Interested and quoted leads only, ranked by hotness and value — these are the ones worth chasing first.</p>
+    ${forecastable.length?(()=>{const ranked=forecastable.map(l=>({l,s:score(l),f:leadFee(l)})).sort((a,b)=>(b.s*b.f)-(a.s*a.f)).slice(0,8);
+      return ranked.map(({l,s,f})=>`<div class="row" style="align-items:center;border-bottom:1px solid var(--line);padding:8px 0">
+        <div style="flex:2;min-width:120px"><b data-lead="${l.id}" style="cursor:pointer">${esc(l.name)}</b> ${scorePill(l)}
+        <div class="eyebrow">${esc(l.stage)} · ${esc(leadSvcNames(l)||'—')} · ${esc(nameOf(l.assignedTo)||'unassigned')}</div></div>
+        <div style="text-align:right;flex:0 0 auto"><div class="num" style="font-weight:600">${f?inr(f):'—'}</div>
+        <div class="eyebrow">${short(f*(PROB[l.stage]||0))} weighted</div></div></div>`).join('');})()
+      :'<div class="empty">No interested or quoted leads right now.</div>'}
+  </div>
   <div class="card" style="margin-top:12px"><h2>Pipeline board</h2><div class="kan">
-    ${OPEN_STAGES.concat(['Advance Paid']).map(st=>{const items=L.filter(l=>l.stage===st);
+    ${(S.settings.stageOrder||OPEN_STAGES).concat(['Advance Paid']).map(st=>{const items=L.filter(l=>l.stage===st);
       return `<div class="col"><h3><span>${st}</span><span>${items.length}</span></h3>
       ${items.slice(0,12).map(l=>`<div class="mini" data-lead="${l.id}"><b>${esc(l.name)}</b>
         <span class="eyebrow">${esc(leadSvcNames(l)||'—')}</span><div class="num">${leadFee(l)?short(leadFee(l)):''}</div></div>`).join('')||'<div class="eyebrow">empty</div>'}
@@ -2012,6 +2178,24 @@ function vSettings(){
       <div style="flex:2"><b>${esc(c.name)}</b><div class="eyebrow">${c.gstin?esc(c.gstin):'no GSTIN yet'} · series ${esc(c.prefix||'INV')}</div></div>
       <button class="btn sm ghost" data-co="${c.id}" style="flex:0 0 auto">Edit</button></div>`).join('')}
     <button class="btn wide" id="addCo" style="margin-top:10px">+ Add a company</button></div>
+  ${can('manageUsers')?`<div class="card" style="margin-top:12px"><h2>Pipeline stages</h2>
+    <p class="sub" style="margin-bottom:8px">Drag isn't needed — use the arrows to reorder how open stages appear on the pipeline board and in reports. New stages you add here become selectable on every lead alongside the built-in ones.</p>
+    <div id="stageOrderBox">${(S.settings.stageOrder||OPEN_STAGES).map((s,ix,arr)=>`<div class="row" style="align-items:center;border-bottom:1px solid var(--line);padding:6px 0">
+      <div style="flex:2">${ix+1}. ${esc(s)}</div>
+      <div style="flex:0 0 auto;display:flex;gap:4px">
+        <button class="btn sm ghost" data-stgup="${ix}" ${ix===0?'disabled':''}>↑</button>
+        <button class="btn sm ghost" data-stgdown="${ix}" ${ix===arr.length-1?'disabled':''}>↓</button></div></div>`).join('')}</div>
+    <p class="sub" style="margin-top:10px">Additional stages (beyond New/Contacted/Interested/Call Later/Quotation Sent, which drive scoring and forecasting and can't be renamed):</p>
+    <div class="chips" style="margin:6px 0">${(S.settings.customStages||[]).map((s,ix)=>`<span class="pill tag">${esc(s)} <span data-rmstage="${ix}" style="cursor:pointer">✕</span></span>`).join('')||'<span class="eyebrow">none added</span>'}</div>
+    <div class="row"><input id="newStage" placeholder="e.g. Site Visit Scheduled"><button class="btn ghost" id="addStage" style="flex:0 0 auto">+ Add stage</button></div></div>
+  <div class="card" style="margin-top:12px"><h2>Call log options</h2>
+    <p class="sub" style="margin-bottom:8px">These are the choices shown when logging a call, WhatsApp, or note against a lead.</p>
+    <div class="row"><div style="flex:1"><b class="eyebrow">Log type</b>
+      <div class="chips" style="margin:6px 0">${(S.settings.logTypes||[]).map((s,ix)=>`<span class="pill n">${esc(s)} <span data-rmlogtype="${ix}" style="cursor:pointer">✕</span></span>`).join('')}</div>
+      <div class="row"><input id="newLogType" placeholder="e.g. SMS"><button class="btn sm ghost" id="addLogType" style="flex:0 0 auto">+ Add</button></div></div>
+    <div style="flex:1"><b class="eyebrow">Outcome</b>
+      <div class="chips" style="margin:6px 0">${(S.settings.logOutcomes||[]).map((s,ix)=>`<span class="pill n">${esc(s)} <span data-rmlogout="${ix}" style="cursor:pointer">✕</span></span>`).join('')}</div>
+      <div class="row"><input id="newLogOut" placeholder="e.g. Left voicemail"><button class="btn sm ghost" id="addLogOut" style="flex:0 0 auto">+ Add</button></div></div></div></div>`:''}
   ${can('manageUsers')?`<div class="card" style="margin-top:12px"><h2>Activity log</h2>
     <p class="sub" style="margin-bottom:8px">Every sign-in, assignment, stage change, invoice and payment — who did what, when.</p>
     <div class="row" style="margin-bottom:8px"><select id="auUser"><option value="">Everyone</option>${team().map(t=>`<option value="${esc(t.username)}">${esc(t.name)}</option>`).join('')}</select>
@@ -2320,6 +2504,21 @@ function wire(){
   document.querySelectorAll('[data-remind]').forEach(el=>el.onclick=e=>{e.stopPropagation();sendReminder(el.dataset.remind);});
   document.querySelectorAll('[data-co]').forEach(el=>el.onclick=()=>editCompany(el.dataset.co));
   const tp=$('#teamPerson');tp&&(tp.onchange=e=>{teamFilt.person=e.target.value;render();});
+  const pn=$('#postNotice');pn&&(pn.onclick=()=>{noticeCompose=!noticeCompose;render();});
+  const na=$('#noticeAll');na&&(na.onchange=()=>{if(na.checked)document.querySelectorAll('.noticeTo').forEach(c=>c.checked=false);});
+  document.querySelectorAll('.noticeTo').forEach(c=>c.onchange=()=>{if(c.checked&&$('#noticeAll'))$('#noticeAll').checked=false;});
+  const sn=$('#sendNotice');sn&&(sn.onclick=()=>{
+    const text=$('#noticeText').value.trim();if(!text)return toast('Write something first');
+    const all=$('#noticeAll')&&$('#noticeAll').checked;
+    const picked=all?['ALL']:[...document.querySelectorAll('.noticeTo:checked')].map(c=>c.value);
+    if(!picked.length)return toast('Pick who this is for');
+    S.notices=S.notices||[];
+    S.notices.push({id:uid('nt'),by:me.username,to:picked,text,at:new Date().toISOString()});
+    audit('Posted a notice to '+(all?'everyone':picked.map(nameOf).join(', ')));
+    noticeCompose=false;save();render();toast('Notice posted');});
+  document.querySelectorAll('[data-rmnotice]').forEach(b=>b.onclick=()=>{
+    if(!confirm('Remove this notice?'))return;
+    S.notices=(S.notices||[]).filter(n=>n.id!==b.dataset.rmnotice);save();render();});
   const es=$('#expSave');es&&(es.onclick=()=>{
     const amt=Number($('#expAmt').value)||0;if(amt<=0)return toast('Enter an amount');
     S.expenses.push({id:uid('exp'),kind:$('#expKind').value,date:$('#expDate').value,amount:amt,note:$('#expNote').value.trim(),by:me.username});
@@ -2343,6 +2542,9 @@ function wire(){
   document.querySelectorAll('[data-restore]').forEach(el=>el.onclick=()=>{
     const l=leadOf(el.dataset.restore);l.stage='New';
     addUpdate(l.id,'Brought back into the active pipeline',true);audit('Restored '+l.name+' from dropped');save();render();toast('Lead restored');});
+  document.querySelectorAll('[data-pri]').forEach(el=>el.onchange=e=>{e.stopPropagation();
+    const l=leadOf(el.dataset.pri);l.priority=el.checked;save();
+    const card=el.closest('.lead');if(card)card.classList.toggle('pri',l.priority);});
   document.querySelectorAll('[data-work]').forEach(el=>el.onclick=()=>{
     const l=leadOf(el.dataset.work);l.work=el.dataset.w;
     if(l.work==='Final delivered'&&leadBalance(l.id)<=0.5)l.stage='Completed';
@@ -2394,6 +2596,8 @@ function wire(){
     $('#fsort').onchange=e=>{filt.sort=e.target.value;render();};
     $('#ftag').onchange=e=>{filt.tag=e.target.value;render();};
     $('#fdead').onclick=()=>{filt.showDead=!filt.showDead;render();};
+    $('#fpriority').onclick=()=>{filt.priority=!filt.priority;render();};
+    $('#funcalled').onclick=()=>{filt.uncalled=!filt.uncalled;if(filt.uncalled)filt.stage='';render();};
   }
   const nt=$('#newTk');nt&&(nt.onclick=()=>editTicket(null,''));
   const ni=$('#newInv');ni&&(ni.onclick=()=>editInvoice(null,{leadId:S.leads[0]?S.leads[0].id:'',type:'tax'}));
@@ -2442,6 +2646,21 @@ function wire(){
     const au=$('#addUser');au&&(au.onclick=addUserForm);
     const asrc=$('#addSrc');asrc&&(asrc.onclick=()=>editSource(null));
     document.querySelectorAll('[data-editsrc]').forEach(b=>b.onclick=()=>editSource(b.dataset.editsrc));
+    document.querySelectorAll('[data-stgup]').forEach(b=>b.onclick=()=>{const i=+b.dataset.stgup,a=S.settings.stageOrder;
+      [a[i-1],a[i]]=[a[i],a[i-1]];audit('Reordered pipeline stages');save();render();});
+    document.querySelectorAll('[data-stgdown]').forEach(b=>b.onclick=()=>{const i=+b.dataset.stgdown,a=S.settings.stageOrder;
+      [a[i+1],a[i]]=[a[i],a[i+1]];audit('Reordered pipeline stages');save();render();});
+    document.querySelectorAll('[data-rmstage]').forEach(b=>b.onclick=()=>{
+      S.settings.customStages.splice(+b.dataset.rmstage,1);save();render();});
+    const asg=$('#addStage');asg&&(asg.onclick=()=>{const v=$('#newStage').value.trim();if(!v)return;
+      if(STAGES.includes(v)||S.settings.customStages.includes(v))return toast('That stage already exists');
+      S.settings.customStages.push(v);audit('Added stage: '+v);save();render();});
+    document.querySelectorAll('[data-rmlogtype]').forEach(b=>b.onclick=()=>{S.settings.logTypes.splice(+b.dataset.rmlogtype,1);save();render();});
+    document.querySelectorAll('[data-rmlogout]').forEach(b=>b.onclick=()=>{S.settings.logOutcomes.splice(+b.dataset.rmlogout,1);save();render();});
+    const alt=$('#addLogType');alt&&(alt.onclick=()=>{const v=$('#newLogType').value.trim();if(!v)return;
+      if(S.settings.logTypes.includes(v))return toast('Already there');S.settings.logTypes.push(v);save();render();});
+    const alo=$('#addLogOut');alo&&(alo.onclick=()=>{const v=$('#newLogOut').value.trim();if(!v)return;
+      if(S.settings.logOutcomes.includes(v))return toast('Already there');S.settings.logOutcomes.push(v);save();render();});
     if($('#userBox'))loadUsers();
     if($('#auBox')){auditShown=25;drawAudit();$('#auUser').onchange=()=>{auditShown=25;drawAudit();};
       $('#auExport').onclick=()=>download('gss-activity-log.csv',toCSV(sheetRows().ActivityLog));
@@ -2471,16 +2690,20 @@ function wire(){
 // Customer ID system: every phone number maps to one customer ID. If a new lead's
 // phone matches an existing lead's phone, they share the same customer ID — this is
 // how repeat clients, and their whole history (leads, invoices, payments), get tied together.
+// Format: 507 followed by a 5-digit sequence, e.g. 50700001, 50700002, ...
+function nextCustomerId(){
+  S.seq.CUST=(S.seq.CUST||0)+1;
+  return '507'+String(S.seq.CUST).padStart(5,'0');
+}
 function customerIdFor(phone){
   const ph=cleanPh(phone).slice(-10);
   if(!ph)return '';
   const existing=S.leads.find(l=>l.customerId&&cleanPh(l.phone).slice(-10)===ph);
   if(existing)return existing.customerId;
-  S.seq.CUST=(S.seq.CUST||0)+1;
-  return 'CUST'+String(S.seq.CUST).padStart(4,'0');
+  return nextCustomerId();
 }
 function matchCustomerId(lead){
-  if(!lead.phone){if(!lead.customerId){S.seq.CUST=(S.seq.CUST||0)+1;lead.customerId='CUST'+String(S.seq.CUST).padStart(4,'0');}return;}
+  if(!lead.phone){if(!lead.customerId){lead.customerId=nextCustomerId();}return;}
   lead.customerId=customerIdFor(lead.phone);
 }
 function customerLeads(customerId){return S.leads.filter(l=>l.customerId===customerId);}
@@ -2488,9 +2711,9 @@ function customerInvoices(customerId){const ids=customerLeads(customerId).map(l=
 function customerPayments(customerId){const ids=customerLeads(customerId).map(l=>l.id);return S.payments.filter(p=>ids.includes(p.leadId));}
 function newLead(o){
   return Object.assign({id:uid('ld'),name:'',phone:'',altPhone:'',email:'',company:'',addr:'',city:'',state:'',pin:'',gstin:'',source:'Other',tag:'GSS',
-    customerId:'',services:[],fees:0,stage:'New',work:'Not started',workAssignees:[],statusUpdates:[],docs:[],notes:'',logs:[],followUp:'',dueDate:'',
+    customerId:'',services:[],fees:0,stage:'New',work:'Not started',workAssignees:[],statusUpdates:[],docs:[],notes:'',logs:[],followUp:'',dueDate:'',priority:false,
     assignedTo:me?me.username:'',assignedBy:me?me.username:'',assignedAt:new Date().toISOString(),paymentIssue:false,companyId:S.companies[0].id,owner:me?me.username:'',
     createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),lastTouch:''},o);
 }
 </script>
-</body></html>
+</body></html>  
