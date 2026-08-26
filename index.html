@@ -3356,7 +3356,15 @@ function layer(html,onClose){
   d.querySelectorAll('[data-close]').forEach(x=>x.onclick=()=>closeLayer());
 }
 function closeLayer(skip){const l=$('#layer');if(!l.firstChild)return;
-  const cb=l.firstChild._onClose;l.innerHTML='';document.body.style.overflow='';if(cb&&!skip)cb();}
+  const cb=l.firstChild._onClose;
+  // Grab the callback's data BEFORE wiping the drawer's HTML — the callback used to run after
+  // innerHTML='' had already destroyed every input in the drawer, so any handler that reads
+  // form fields via querySelectorAll (like saving a lead's edited details on close) found
+  // nothing there and silently saved no changes at all. This is what made lead email/address/
+  // GSTIN edits vanish: they were never actually written to the data, only the unrelated
+  // save()/push afterward still fired, syncing the unchanged record.
+  if(cb&&!skip)cb();
+  l.innerHTML='';document.body.style.overflow='';}
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeLayer();});
 document.addEventListener('click',async e=>{
   if(e.target.id!=='commitInbox')return;
