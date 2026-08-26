@@ -767,9 +767,21 @@ const leadSvcNames=l=>(l.services||[]).map(x=>x.name).join(' + ');
 const leadInv=id=>S.invoices.filter(i=>i.leadId===id&&i.type==='tax'&&i.status!=='cancelled');
 const leadPaid=id=>S.payments.filter(p=>p.leadId===id).reduce((s,p)=>s+Number(p.amount||0),0);
 const leadBilled=id=>leadInv(id).reduce((s,i)=>s+invTotals(i).total,0);
-const leadBalance=id=>{const l=leadOf(id);if(!l)return 0;const billed=leadBilled(id);
-  const base=billed||Math.round(leadFee(l)*(1+(S.settings.gstRate||18)/100));
-  return Math.max(0,base-leadPaid(id));};
+// The figure that should drive the dashboard target, deal-flow/pipeline value, and any other
+// "how much is this lead actually worth" number. Priority: a real tax invoice's total (already
+// after discount and with GST) > a proforma/quotation's total (also already after discount) >
+// only as a last resort, the raw quoted service rates on the lead itself, which were never
+// adjusted for any discount and are the wrong number once a real document exists.
+const leadDealValue=id=>{
+  const l=leadOf(id);if(!l)return 0;
+  const tax=leadInv(id);
+  if(tax.length)return tax.reduce((s,i)=>s+invTotals(i).total,0);
+  const quotes=S.invoices.filter(i=>i.leadId===id&&i.type==='proforma'&&i.status!=='cancelled').sort((a,b)=>b.date<a.date?-1:1);
+  if(quotes.length)return invTotals(quotes[0]).total;
+  return Math.round(leadFee(l)*(1+(S.settings.gstRate||18)/100));
+};
+const leadBalance=id=>{const l=leadOf(id);if(!l)return 0;
+  return Math.max(0,leadDealValue(id)-leadPaid(id));};
 const isProject=l=>LIVE.includes(l.stage)||leadPaid(l.id)>0;
 const stagePill=s=>{const m={'New':'b','Contacted':'b','Interested':'g','Call Later':'a','Quotation Sent':'a','Advance Paid':'g','Completed':'g','Lost':'r','Fake':'r','Not Interested':'r','On Hold':'n'};
   return `<span class="pill ${m[s]||'n'}">${esc(s)}</span>`;};
@@ -957,14 +969,14 @@ function startedMonth(leadId){
 }
 function recognisedIn(m){
   return S.leads.filter(l=>startedMonth(l.id)===m)
-    .reduce((s,l)=>s+(leadBilled(l.id)||Math.round(leadFee(l)*(1+(S.settings.gstRate||18)/100))||leadFee(l)),0);
+    .reduce((s,l)=>s+leadDealValue(l.id),0);
 }
 // Simpler revenue-by-month view requested for the P&L: the calendar month the LEAD arrived in is
 // the month its (eventual) value counts as revenue, regardless of when it was actually paid.
 // Only counts leads that did convert (paid something), so pure enquiries that went nowhere don't inflate revenue.
 function revenueByLeadMonth(m){
   return S.leads.filter(l=>l.createdAt.slice(0,7)===m&&leadPaid(l.id)>0)
-    .reduce((s,l)=>s+(leadBilled(l.id)||Math.round(leadFee(l)*(1+(S.settings.gstRate||18)/100))||leadFee(l)),0);
+    .reduce((s,l)=>s+leadDealValue(l.id),0);
 }
 function expensesIn(m,kind){
   return (S.expenses||[]).filter(e=>e.date.slice(0,7)===m&&(!kind||e.kind===kind)).reduce((s,e)=>s+Number(e.amount||0),0);
@@ -998,7 +1010,7 @@ function vDash(){
   const L=visibleLeads(),mine=L.filter(x=>x.assignedTo===me.username&&OPEN_STAGES.includes(x.stage));
   const openL=L.filter(x=>OPEN_STAGES.includes(x.stage));
   const forecastable=L.filter(l=>['Interested','Quotation Sent'].includes(l.stage));
-  const forecast=forecastable.reduce((s,l)=>s+leadFee(l)*(PROB[l.stage]||0),0);
+  const forecast=forecastable.reduce((s,l)=>s+leadDealValue(l.id)*(PROB[l.stage]||0),0);
   const got=recognisedIn(month()),tgt=targetOf(month());
   const pending=L.filter(isProject).reduce((s,l)=>s+leadBalance(l.id),0);
   const hot=L.filter(l=>OPEN_STAGES.includes(l.stage)).map(l=>({l,s:score(l)})).sort((a,b)=>b.s-a.s).slice(0,6);
@@ -1044,7 +1056,7 @@ function vDash(){
 
   // AOV
   const paidL=L.filter(l=>leadPaid(l.id)>0);
-  const aov=paidL.length?paidL.reduce((s,l)=>s+(leadBilled(l.id)||Math.round(leadFee(l)*1.18)),0)/paidL.length:0;
+  const aov=paidL.length?paidL.reduce((s,l)=>s+leadDealValue(l.id),0)/paidL.length:0;
 
   // pipeline stage visualization (initial contact -> closed won/lost)
   const pipeline=[['New',L.filter(l=>l.stage==='New').length],['Contacted',L.filter(l=>l.stage==='Contacted').length],
@@ -2141,7 +2153,7 @@ function moneyByCompanySection(){
       ${moneyCoOpen[r.c.id]?`<tr><td colspan="7" style="padding:0"><div class="tablewrap" style="padding:8px 0 12px"><table>
         <thead><tr><th>Project</th><th>Stage</th><th>Work</th><th>Value</th><th>Balance</th></tr></thead><tbody>
         ${r.projects.length?r.projects.map(l=>`<tr class="click" data-lead="${l.id}"><td>${esc(l.name)}</td><td>${stagePill(l.stage)}</td>
-          <td><span class="pill n">${esc(l.work)}</span></td><td class="num">${inr(leadFee(l))}</td>
+          <td><span class="pill n">${esc(l.work)}</span></td><td class="num">${inr(leadDealValue(l.id))}</td>
           <td class="num" style="${leadBalance(l.id)>0.5?'color:var(--bad);font-weight:600':''}">${leadBalance(l.id)>0.5?inr(leadBalance(l.id)):'—'}</td></tr>`).join('')
           :'<tr><td colspan="5"><div class="empty">No projects booked with this company.</div></td></tr>'}
         </tbody></table></div></td></tr>`:''}`).join('')
@@ -2326,7 +2338,7 @@ function vCustomers(){
   let rows=Object.entries(byId).map(([cid,leads])=>{
     const primary=leads.slice().sort((a,b)=>a.createdAt.localeCompare(b.createdAt))[0];
     const totalPaid=leads.reduce((s,l)=>s+leadPaid(l.id),0);
-    const totalValue=leads.reduce((s,l)=>s+leadFee(l),0);
+    const totalValue=leads.reduce((s,l)=>s+leadDealValue(l.id),0);
     const hasProject=leads.some(isProject);
     return {cid,leads,primary,totalPaid,totalValue,hasProject};
   });
@@ -2370,7 +2382,7 @@ function openCustomer(cid){
       ${leads.map(l=>`<div class="row click" data-lead="${l.id}" style="align-items:center;border-bottom:1px solid var(--line);padding:9px 0;cursor:pointer">
         <div style="flex:2"><b>${esc(l.name)}</b> ${stagePill(l.stage)}
           <div class="eyebrow">${esc(leadSvcNames(l)||'no service yet')} · ${fmtD(l.createdAt.slice(0,10))}</div></div>
-        <div style="text-align:right;flex:0 0 auto"><div class="num">${leadFee(l)?inr(leadFee(l)):'—'}</div>
+        <div style="text-align:right;flex:0 0 auto"><div class="num">${leadDealValue(l.id)?inr(leadDealValue(l.id)):'—'}</div>
           ${isProject(l)&&leadBalance(l.id)>0.5?`<div class="eyebrow" style="color:var(--bad)">${inr(leadBalance(l.id))} due</div>`:''}</div>
         </div>`).join('')}</div>
   </div>`,()=>render());
@@ -2435,7 +2447,7 @@ function vTeam(){
     <div class="tablewrap"><table><thead><tr><th>Name</th><th>Stage</th><th>Services</th><th>Value</th><th>Balance</th></tr></thead><tbody>
     ${own.sort((a,b)=>b.createdAt.localeCompare(a.createdAt)).slice(0,25).map(l=>`<tr class="click" data-lead="${l.id}">
       <td>${esc(l.name)}</td><td>${stagePill(l.stage)}</td><td class="eyebrow">${esc(leadSvcNames(l)||'—')}</td>
-      <td class="num">${leadFee(l)?inr(leadFee(l)):'—'}</td>
+      <td class="num">${leadDealValue(l.id)?inr(leadDealValue(l.id)):'—'}</td>
       <td class="num" style="${isProject(l)&&leadBalance(l.id)>0.5?'color:var(--bad)':''}">${isProject(l)?inr(leadBalance(l.id)):'—'}</td></tr>`).join('')}
     </tbody></table></div>${own.length>25?`<p class="sub" style="margin-top:8px">Showing latest 25 of ${own.length}.</p>`:''}</div>`;}).join('')}
   `;
@@ -2448,7 +2460,7 @@ function vReports(){
   const quoted=L.filter(l=>['Quotation Sent','Advance Paid','Completed'].includes(l.stage)).length;
   const paidL=L.filter(l=>leadPaid(l.id)>0);
   const lost=L.filter(l=>['Lost','Not Interested'].includes(l.stage)).length,fake=L.filter(l=>l.stage==='Fake').length;
-  const aov=paidL.length?paidL.reduce((s,l)=>s+(leadBilled(l.id)||Math.round(leadFee(l)*1.18)),0)/paidL.length:0;
+  const aov=paidL.length?paidL.reduce((s,l)=>s+leadDealValue(l.id),0)/paidL.length:0;
   const byType={},revType={};
   L.forEach(l=>{if(leadPaid(l.id)>0)(l.services||[]).forEach(s=>byType[s.name]=(byType[s.name]||0)+1);});
   S.payments.forEach(p=>{const l=leadOf(p.leadId);if(!l)return;const sv=(l.services||[]);
@@ -2463,7 +2475,7 @@ function vReports(){
   const velocity=cyc.length?Math.round(cyc.reduce((a,b)=>a+b,0)/cyc.length):0;
   const openL=L.filter(l=>OPEN_STAGES.includes(l.stage));
   const forecastable=L.filter(l=>['Interested','Quotation Sent'].includes(l.stage));
-  const weighted=forecastable.reduce((s,l)=>s+leadFee(l)*(PROB[l.stage]||0),0);
+  const weighted=forecastable.reduce((s,l)=>s+leadDealValue(l.id)*(PROB[l.stage]||0),0);
   const last3=mo.slice(-3).map(m=>recognisedIn(m)),run=last3.reduce((a,b)=>a+b,0)/3;
   const avgRate={};L.forEach(l=>(l.services||[]).forEach(s=>{if(s.rate)(avgRate[s.name]=avgRate[s.name]||[]).push(s.rate);}));
   const tgt=targetOf(month()),got=recognisedIn(month()),cashIn=collectedIn(month()),dleft=Math.max(1,31-new Date().getDate());
@@ -2508,7 +2520,7 @@ function vReports(){
     <div class="sub">${tgt?inr(got)+' of '+inr(tgt)+' recognised this month (full value of projects started) · '+inr(cashIn)+' actually collected':'No target set'}</div></div>`:''}
   ${isAdmin()?`<div class="card" style="margin-top:12px"><h2>Most likely to convert</h2>
     <p class="sub" style="margin-bottom:8px">Interested and quoted leads only, ranked by hotness and value — these are the ones worth chasing first.</p>
-    ${forecastable.length?(()=>{const ranked=forecastable.map(l=>({l,s:score(l),f:leadFee(l)})).sort((a,b)=>(b.s*b.f)-(a.s*a.f)).slice(0,8);
+    ${forecastable.length?(()=>{const ranked=forecastable.map(l=>({l,s:score(l),f:leadDealValue(l.id)})).sort((a,b)=>(b.s*b.f)-(a.s*a.f)).slice(0,8);
       return ranked.map(({l,s,f})=>`<div class="row" style="align-items:center;border-bottom:1px solid var(--line);padding:8px 0">
         <div style="flex:2;min-width:120px"><b data-lead="${l.id}" style="cursor:pointer">${esc(l.name)}</b> ${scorePill(l)}
         <div class="eyebrow">${esc(l.stage)} · ${esc(leadSvcNames(l)||'—')} · ${esc(nameOf(l.assignedTo)||'unassigned')}</div></div>
@@ -2551,8 +2563,8 @@ function vReports(){
     ${(S.settings.stageOrder||OPEN_STAGES).concat(['Advance Paid']).map(st=>{const items=L.filter(l=>l.stage===st);
       return `<div class="col"><h3><span>${st}</span><span>${items.length}</span></h3>
       ${items.slice(0,12).map(l=>`<div class="mini" data-lead="${l.id}"><b>${esc(l.name)}</b>
-        <span class="eyebrow">${esc(leadSvcNames(l)||'—')}</span><div class="num">${leadFee(l)?short(leadFee(l)):''}</div></div>`).join('')||'<div class="eyebrow">empty</div>'}
-      <div class="eyebrow" style="margin-top:6px">${short(items.reduce((s,l)=>s+leadFee(l),0))}</div></div>`;}).join('')}
+        <span class="eyebrow">${esc(leadSvcNames(l)||'—')}</span><div class="num">${leadDealValue(l.id)?short(leadDealValue(l.id)):''}</div></div>`).join('')||'<div class="eyebrow">empty</div>'}
+      <div class="eyebrow" style="margin-top:6px">${short(items.reduce((s,l)=>s+leadDealValue(l.id),0))}</div></div>`;}).join('')}
   </div></div>
   <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(300px,1fr));margin-top:12px">
     <div class="card"><h2>Conversion funnel</h2><div class="funnel">${funnel.map(([k,v])=>`<div class="f"><div>${k}</div>
@@ -2576,7 +2588,7 @@ function vReports(){
         const rows=S.services.map(sv=>{
           const all=L.filter(l=>(l.services||[]).some(s=>s.code===sv.code));
           const won=all.filter(l=>leadPaid(l.id)>0);
-          const wonValue=won.reduce((s,l)=>s+leadFee(l),0);
+          const wonValue=won.reduce((s,l)=>s+leadDealValue(l.id),0);
           return {sv,all,won,wonValue,rate:all.length?won.length/all.length:0};
         }).filter(r=>r.all.length).sort((a,b)=>b.rate-a.rate);
         return rows.length?rows.map(({sv,all,won,wonValue,rate})=>
@@ -2593,7 +2605,7 @@ function vReports(){
       <div class="tablewrap"><table><thead><tr><th>Source</th><th>Leads</th><th>Converted</th><th>Conv. rate</th><th>Revenue</th><th>Ad spend (all time)</th><th>ROI</th></tr></thead><tbody>
       ${SOURCES.map(s=>{
         const all=L.filter(l=>l.source===s),won=all.filter(l=>leadPaid(l.id)>0);
-        const rev=won.reduce((sum,l)=>sum+(leadBilled(l.id)||Math.round(leadFee(l)*1.18)),0);
+        const rev=won.reduce((sum,l)=>sum+leadDealValue(l.id),0);
         const spendKind=s==='Wix form'?'Google Ads':s==='Instagram'?'Facebook Ads':null;
         const spend=spendKind?(S.expenses||[]).filter(e=>e.kind===spendKind).reduce((sum,e)=>sum+Number(e.amount||0),0):0;
         const roi=spend>0?Math.round((rev-spend)/spend*100):null;
