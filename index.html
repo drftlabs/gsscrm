@@ -497,6 +497,13 @@ async function backgroundRefresh(){
   if($('#layer')&&$('#layer').firstChild)return; // a drawer/dialog is open — don't disturb it
   try{
     const keep=S.settings.api,p=await api('pull');
+    // Re-check right here, not just before the pull started: the pull can take a second or
+    // more, and if the person made ANY edit while it was in flight (tapped a tick, changed a
+    // dropdown), applying this now-stale pull would silently erase that edit — exactly what
+    // was happening with "marked completed" reverting. Bail out and let the normal push
+    // cycle handle the local edit instead of overwriting it.
+    if(pendingPush||pushInFlight||cache.unsynced())return;
+    if($('#layer')&&$('#layer').firstChild)return;
     if(p.ok&&p.data){
       const before=JSON.stringify({l:S.leads.length,i:S.invoices.length,p:S.payments.length});
       S=Object.assign(DEFAULTS(),p.data);S.settings=Object.assign(DEFAULTS().settings,p.data.settings||{});
@@ -673,7 +680,14 @@ function migrate(){
   (S.leads||[]).slice().sort((a,b)=>a.createdAt.localeCompare(b.createdAt))
     .forEach(l=>{ if(!l.customerId) matchCustomerId(l); });
   const have=new Set(S.services.map(s=>s.code));
-  CATALOG.forEach(([code,name,rate])=>{if(!have.has(code))S.services.push({code,name,rate});});
+  // Only ever seed the default catalog once, on first-ever setup. If this ran on every
+  // migrate() (which fires on every boot, sign-in, and background sync), any service the
+  // user deliberately renamed or removed — including just changing its code — would keep
+  // silently reappearing, which is exactly what made edits look like they "didn't save."
+  if(!S.settings.catalogSeeded){
+    CATALOG.forEach(([code,name,rate])=>{if(!have.has(code))S.services.push({code,name,rate});});
+    S.settings.catalogSeeded=true;
+  }
 }
 function applyBrand(){const b=S.settings.brand||PRESETS['Get Set Startup'],r=document.documentElement.style;
   r.setProperty('--brand',b.brand);r.setProperty('--brand-dark',b.dark);r.setProperty('--accent',b.accent);r.setProperty('--bg',b.bg);
@@ -738,7 +752,13 @@ async function signIn(){
     const keep=S.settings.api,p=await api('pull');
     const serverTime=p.data&&p.updatedAt?new Date(p.updatedAt).getTime():0;
     const localTime=S.updatedAt?new Date(S.updatedAt).getTime():0;
-    if(p.ok&&p.data&&serverTime>=localTime){
+    // The app became interactive the moment draw() ran above, so the person may already have
+    // made an edit while this pull was in flight. Re-check for that before ever overwriting S —
+    // same fix as backgroundRefresh, same reasoning: a pull that started before an edit must
+    // never silently erase it just because it finishes after.
+    if(pendingPush||pushInFlight||cache.unsynced()){
+      if(p.ok&&p.data&&cache.unsynced()){/* local now has its own unconfirmed change — let the normal push cycle handle it, don't touch S here */}
+    }else if(p.ok&&p.data&&serverTime>=localTime){
       S=Object.assign(DEFAULTS(),p.data);S.settings=Object.assign(DEFAULTS().settings,p.data.settings||{});
       S.settings.api=keep;migrate();cache.unsynced(false);
     }else if(cache.unsynced()){
@@ -3191,7 +3211,7 @@ function wire(){
   }
   if($('#addSvcCat')||document.querySelector('[data-cat]')){
     document.querySelectorAll('[data-cat]').forEach(el=>el.onchange=()=>{const s=S.services[+el.dataset.cat];if(!s)return;
-      s[el.dataset.k]=el.dataset.k==='rate'?Number(el.value)||0:(el.dataset.k==='code'?el.value.toUpperCase().replace(/[^A-Z]/g,''):el.value);save();});
+      s[el.dataset.k]=el.dataset.k==='rate'?Number(el.value)||0:(el.dataset.k==='code'?el.value.toUpperCase().replace(/[^A-Z]/g,''):el.value);save();toast('Saved');});
     document.querySelectorAll('[data-rmcat]').forEach(b=>b.onclick=()=>{
       if(confirm('Remove this service? Existing leads keep theirs.')){S.services.splice(+b.dataset.rmcat,1);save();render();}});
   }
@@ -3281,4 +3301,4 @@ function newLead(o){
     createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),lastTouch:''},o);
 }
 </script>
-</body></html>  
+</body></html>
