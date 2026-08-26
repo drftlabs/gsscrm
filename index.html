@@ -586,16 +586,29 @@ function audit(what){
   migrate();applyBrand();
   if(S.settings.api&&cache.tok()){
     const keep=S.settings.api;
-    // If this device has changes that were never confirmed pushed (e.g. the tab was closed
-    // or lost connection before the sync completed), push those first — never let an
-    // incoming pull silently throw away data that only exists on this device.
-    if(cache.unsynced()){
-      try{await api('push',{data:S,tables:sheetRows()});cache.unsynced(false);}catch(e){}
-    }
-    try{const r=await api('pull');
-      if(r.ok){me=cache.who()||{name:'Signed in',username:'user',role:'staff'};
-        if(r.data){S=Object.assign(DEFAULTS(),r.data);S.settings=Object.assign(DEFAULTS().settings,r.data.settings||{});}
-        S.settings.api=keep;migrate();syncState='ok';applyBrand();loadTeam();}
+    // CRITICAL: never push local data over the server just because a flag says "unsynced" —
+    // that flag only means a previous push attempt didn't get a confirmed response, which
+    // happens routinely (tab closed, phone locked, weak signal) and is NOT proof the local
+    // copy is newer or correct. Pushing blindly here was the actual cause of stale data
+    // silently overwriting the server: pull first, compare real timestamps, and only push
+    // the local copy if it is genuinely newer than what the server already has.
+    try{
+      const r=await api('pull');
+      if(r.ok){
+        me=cache.who()||{name:'Signed in',username:'user',role:'staff'};
+        const serverTime=r.data&&r.updatedAt?new Date(r.updatedAt).getTime():0;
+        const localTime=S.updatedAt?new Date(S.updatedAt).getTime():0;
+        if(r.data&&serverTime>=localTime){
+          // Server copy is at least as new — trust it, this device's unsynced flag was stale.
+          S=Object.assign(DEFAULTS(),r.data);S.settings=Object.assign(DEFAULTS().settings,r.data.settings||{});
+          S.settings.api=keep;migrate();cache.unsynced(false);cache.set(S);
+        }else if(cache.unsynced()){
+          // Local copy is genuinely newer than the server AND has unconfirmed changes —
+          // now it's safe to push, because we've actually verified it, not just assumed it.
+          try{await api('push',{data:S,tables:sheetRows()});cache.unsynced(false);}catch(e){}
+        }
+        syncState='ok';applyBrand();loadTeam();
+      }
     }catch(e){}
   }
   if(me){setDefaultFilter();checkInbox();startBackgroundSync();}
@@ -707,10 +720,19 @@ async function signIn(){
     // person stare at a blank/loading screen for the full round-trip chain below.
     setDefaultFilter();draw();
     setStatus('');
-    if(cache.unsynced()){try{await api('push',{data:S,tables:sheetRows()});cache.unsynced(false);}catch(e){}}
+    // Same rule as boot: pull first and compare real timestamps before ever pushing local
+    // data. A stale "unsynced" flag from a previous session must never blindly overwrite
+    // whatever the server actually has now.
     const keep=S.settings.api,p=await api('pull');
-    if(p.ok&&p.data){S=Object.assign(DEFAULTS(),p.data);S.settings=Object.assign(DEFAULTS().settings,p.data.settings||{});}
-    S.settings.api=keep;migrate();syncState='ok';cache.set(S);applyBrand();
+    const serverTime=p.data&&p.updatedAt?new Date(p.updatedAt).getTime():0;
+    const localTime=S.updatedAt?new Date(S.updatedAt).getTime():0;
+    if(p.ok&&p.data&&serverTime>=localTime){
+      S=Object.assign(DEFAULTS(),p.data);S.settings=Object.assign(DEFAULTS().settings,p.data.settings||{});
+      S.settings.api=keep;migrate();cache.unsynced(false);
+    }else if(cache.unsynced()){
+      try{await api('push',{data:S,tables:sheetRows()});cache.unsynced(false);}catch(e){}
+    }
+    syncState='ok';cache.set(S);applyBrand();
     audit('Signed in');save();render();checkInbox();
     startBackgroundSync();
     loadTeam(); // team roster isn't needed to start using the app — load it in the background
@@ -960,6 +982,18 @@ function rowMini(x,note,followUpActions){
     <button class="btn sm ghost" data-fusnooze="${x.id}" title="Reschedule">${AICON.clock} Reschedule</button>`:''}
     <button class="btn sm" data-lead="${x.id}">Open</button></div></div>`;
 }
+// "Done for today" on a priority-queue item is deliberately local-only, not synced — it's a
+// per-person, per-day dismissal (not a change to the lead itself), so it resets naturally
+// tomorrow and doesn't need to travel across devices or team members.
+function queueDismissKey(){return 'gss-qdismiss-'+today();}
+function queueDismissedSet(){
+  try{return new Set(JSON.parse(localStorage.getItem(queueDismissKey())||'[]'));}catch(e){return new Set();}
+}
+function isQueueDismissedToday(leadId,kind){return queueDismissedSet().has(leadId+':'+kind);}
+function dismissQueueItem(leadId,kind){
+  const s=queueDismissedSet();s.add(leadId+':'+kind);
+  try{localStorage.setItem(queueDismissKey(),JSON.stringify([...s]));}catch(e){}
+}
 function vDash(){
   const L=visibleLeads(),mine=L.filter(x=>x.assignedTo===me.username&&OPEN_STAGES.includes(x.stage));
   const openL=L.filter(x=>OPEN_STAGES.includes(x.stage));
@@ -992,7 +1026,7 @@ function vDash(){
       queue.push({l,reason:'Payment default'+(bal>0.5?' — '+short(bal):''),urgency:80,kind:'default'});
     });
   }
-  const queueTop=queue.sort((a,b)=>b.urgency-a.urgency).slice(0,8);
+  const queueTop=queue.filter(q=>!isQueueDismissedToday(q.l.id,q.kind)).sort((a,b)=>b.urgency-a.urgency).slice(0,8);
 
   // interested vs total
   const interestedStages=['Interested','Quotation Sent','Advance Paid','Completed'];
@@ -1031,7 +1065,8 @@ function vDash(){
         <span class="pill ${kind==='default'?'r':kind==='quote'?'a':'n'}">${esc(reason)}</span>
         <div class="eyebrow">${esc(leadSvcNames(l)||l.stage)}</div></div>
       <div style="flex:0 0 auto;display:flex;gap:6px">${l.phone?`<a class="btn sm ghost" href="${tel(l.phone)}">${ICON_CALL} Call</a>`:''}
-      <button class="btn sm" data-lead="${l.id}">Open</button></div></div>`).join('')}
+      <button class="btn sm" data-lead="${l.id}">Open</button>
+      <button class="btn sm green" data-queuedone="${l.id}" data-queuekind="${kind}" title="Done for today">✓ Done for today</button></div></div>`).join('')}
   </div>`:''}
   ${hideMoney?'':`<div class="card" style="margin-bottom:12px"><h2>This month's target</h2>
     <div class="row" style="align-items:baseline"><div class="num" style="font-size:24px;font-weight:600">${inr(got)}</div>
@@ -3016,6 +3051,8 @@ function wire(){
     addUpdate(l.id,'Follow-up completed',true);
     audit('Marked follow-up done for '+l.name);
     l.followUp='';save();render();toast('Follow-up marked done');});
+  document.querySelectorAll('[data-queuedone]').forEach(el=>el.onclick=e=>{e.stopPropagation();
+    dismissQueueItem(el.dataset.queuedone,el.dataset.queuekind);render();toast('Removed from today\u2019s queue');});
   document.querySelectorAll('[data-fusnooze]').forEach(el=>el.onclick=e=>{e.stopPropagation();
     const l=leadOf(el.dataset.fusnooze);if(!l)return;
     const d=prompt('Reschedule follow-up to which date? (YYYY-MM-DD)',new Date(Date.now()+2*864e5).toISOString().slice(0,10));
