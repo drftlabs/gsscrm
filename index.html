@@ -201,6 +201,8 @@ tr.click:hover{background:linear-gradient(90deg,var(--brand-soft),#FAF8FD);curso
   background:linear-gradient(155deg,var(--brand),var(--brand-dark));box-shadow:0 3px 10px -2px rgba(42,6,96,.5);
   flex-direction:column;align-items:center;justify-content:center;gap:4px;cursor:pointer}
 .hamburger span{display:block;width:19px;height:2px;background:#fff;border-radius:2px}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:99px;vertical-align:-2px;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
 .mobonly{display:none}
 .itemrow{display:grid;grid-template-columns:1fr 58px 92px 30px;gap:6px;margin-bottom:6px}
 .svcrow{display:grid;grid-template-columns:1fr 106px 30px;gap:6px;margin-bottom:6px;align-items:center}
@@ -253,7 +255,8 @@ const NAVICON={
   reports:'<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M18.7 8l-5.1 5.2-3-3L7 13.6"/></svg>',
   services:'<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>',
   settings:'<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>',
-  team:'<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="7" r="4"/><path d="M2 21v-2a4 4 0 0 1 4-4h6a4 4 0 0 1 4 4v2"/><circle cx="18" cy="8" r="3"/><path d="M22 21v-1.5a3.5 3.5 0 0 0-2.5-3.36"/></svg>'
+  team:'<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="7" r="4"/><path d="M2 21v-2a4 4 0 0 1 4-4h6a4 4 0 0 1 4 4v2"/><circle cx="18" cy="8" r="3"/><path d="M22 21v-1.5a3.5 3.5 0 0 0-2.5-3.36"/></svg>',
+  customers:'<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/><path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3"/></svg>'
 };
 /* Compact action icon set for .acts buttons */
 const AICON={
@@ -306,7 +309,7 @@ const ALIAS={PITCH:'PD',DECK:'PD',PITCHDECK:'PD',SALESDECK:'SD',BPLAN:'BP',BIZPL
 // Bundle codes expand into more than one service code when typed in the paste dock.
 // COMB = Pitch Deck + Financial Model, the combination most often quoted together.
 const BUNDLES={COMB:['PD','FM']};
-const SECTIONS=[['dash','Dashboard'],['leads','Leads'],['projects','Projects'],['team','Team Work & Follow-ups'],['tickets','Tickets'],['invoices','Quotations & Invoices'],['money','Payments'],['reports','Analytics'],['services','Services'],['settings','Setup']];
+const SECTIONS=[['dash','Dashboard'],['leads','Leads'],['projects','Projects'],['customers','Customer Database'],['team','Team Work & Follow-ups'],['tickets','Tickets'],['invoices','Quotations & Invoices'],['money','Payments'],['reports','Analytics'],['services','Services'],['settings','Setup']];
 const FEATURES=[['createInvoice','Create quotations & invoices'],['recordPayment','Record payments'],['assignAny','Assign leads to anyone'],
   ['deleteLead','Delete leads'],['export','Export & backup'],['editServices','Edit service catalogue'],['manageUsers','Manage logins & permissions'],['viewAllMoney','See all money figures']];
 const PRESETS={'Get Set Startup':{brand:'#4B0FA0',dark:'#2A0660',accent:'#F0C000',bg:'#F6F3FA'},
@@ -384,7 +387,8 @@ const DEFAULTS=()=>({
     gstRate:18,dueDays:7,ownerName:'',ownerEmail:'',brand:PRESETS['Get Set Startup'],localHash:'',localSalt:'',localName:'Admin',
     perms:{},targets:{},defaultTarget:0,defaultTerms:'1) Advance 50%\\n2) 25% on first draft, Balance 25% on completion\\n3) Delivery in approx. 10 working days(s)\\n4) 6 Months Support & Revision Period',
     stageOrder:OPEN_STAGES.slice(),customStages:[],
-    logTypes:['Call','WhatsApp','Email','Meeting','Note'],logOutcomes:['Connected','No answer','Interested','Asked to call later','Not interested','—']}
+    logTypes:['Call','WhatsApp','Email','Meeting','Note'],logOutcomes:['Pending','Connected','No answer','Call later','Interested','Not interested'],
+    hideMoneyFromStaff:false}
 });
 let S=DEFAULTS(),route='dash',me=null,syncState='off',lastSync='';
 
@@ -400,7 +404,12 @@ async function api(action,payload){
 let pushTimer=null,pushRetryTimer=null,pendingPush=false,pushAttempts=0;
 function save(){S.updatedAt=new Date().toISOString();cache.set(S);cache.unsynced(true);
   if(S.settings.api&&me){pendingPush=true;syncState='pending';paintSync();
-    clearTimeout(pushTimer);clearTimeout(pushRetryTimer);pushAttempts=0;pushTimer=setTimeout(pushNow,1200);}}
+    clearTimeout(pushTimer);clearTimeout(pushRetryTimer);pushAttempts=0;
+    // Short debounce, not the old 1.2s — on mobile the tab can background or the browser
+    // can suspend JS execution almost immediately after a tap (switching apps, screen lock,
+    // the phone call/notification interrupting), so waiting over a second before even
+    // starting the network request was long enough to lose the save entirely.
+    pushTimer=setTimeout(pushNow,350);}}
 async function pushNow(){
   try{syncState='busy';paintSync();
     const r=await api('push',{data:S,tables:sheetRows()});
@@ -422,12 +431,32 @@ function scheduleRetry(msg){
     toast('Could not sync — tap the sync status to retry. Your changes are safe on this device.');
   }
 }
+// beforeunload/fetch cannot be relied on for mobile: the moment a phone browser backgrounds
+// or the OS switches apps, the JS execution context is frequently suspended or killed
+// outright before a normal fetch() promise ever resolves. navigator.sendBeacon is built
+// specifically to survive that — the browser guarantees the request is queued and sent
+// even after the page is gone, which a regular fetch cannot guarantee.
+function beaconPush(){
+  if(!S.settings.api||!me)return false;
+  try{
+    const body=JSON.stringify(Object.assign({action:'push',token:cache.tok(),data:S,tables:sheetRows()}));
+    const blob=new Blob([body],{type:'text/plain;charset=utf-8'});
+    const ok=navigator.sendBeacon(S.settings.api,blob);
+    if(ok)cache.unsynced(false); // beacon queued successfully — trust it, can't get a response back
+    return ok;
+  }catch(e){return false;}
+}
 function flushPendingSync(){
   // Called when the tab is about to close/background/lose focus. If there's an unsynced
-  // change sitting behind the debounce timer, push it right now instead of losing it.
-  if(pendingPush&&S.settings.api&&me){clearTimeout(pushTimer);clearTimeout(pushRetryTimer);pushNow();}
+  // change sitting behind the debounce timer, get it out the door right now — sendBeacon
+  // first since it's the only mechanism that reliably survives the page disappearing;
+  // fall back to a normal push in case sendBeacon isn't available for some reason.
+  if(!pendingPush||!S.settings.api||!me)return;
+  clearTimeout(pushTimer);clearTimeout(pushRetryTimer);
+  if(!(navigator.sendBeacon&&beaconPush()))pushNow();
 }
 window.addEventListener('beforeunload',flushPendingSync);
+window.addEventListener('pagehide',flushPendingSync);
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')flushPendingSync();});
 function paintSync(){const el=$('#syncBadge');if(!el)return;
   const m={off:['off','This device only'],pending:['off','Saving…'],busy:['off','Syncing…'],ok:['','Synced '+lastSync],err:['err','Sync failed — tap to retry']}[syncState];
@@ -436,6 +465,26 @@ let inbox=[];
 async function checkInbox(){
   if(!S.settings.api||!me)return;
   try{const r=await api('pullInbox');if(r.ok){inbox=r.items||[];if(inbox.length&&route==='leads')render();}}catch(e){}
+}
+// Periodic background refresh so a change made on someone else's device shows up here without
+// needing a manual sign-out/sign-in. Only pulls when this device has nothing unsaved of its
+// own — never risk clobbering a local edit that hasn't synced yet — and never while someone
+// is actively mid-edit in a drawer (a pull would yank the form out from under them).
+async function backgroundRefresh(){
+  if(!S.settings.api||!me)return;
+  if(pendingPush||cache.unsynced())return; // this device has something of its own to push first
+  if($('#layer')&&$('#layer').firstChild)return; // a drawer/dialog is open — don't disturb it
+  try{
+    const keep=S.settings.api,p=await api('pull');
+    if(p.ok&&p.data){
+      const before=JSON.stringify({l:S.leads.length,i:S.invoices.length,p:S.payments.length});
+      S=Object.assign(DEFAULTS(),p.data);S.settings=Object.assign(DEFAULTS().settings,p.data.settings||{});
+      S.settings.api=keep;migrate();cache.set(S);
+      const after=JSON.stringify({l:S.leads.length,i:S.invoices.length,p:S.payments.length});
+      syncState='ok';paintSync();
+      if(before!==after&&route!=='settings')render(); // something changed elsewhere — refresh what's on screen
+    }
+  }catch(e){}
 }
 function inboxBanner(){
   if(!inbox.length)return '';
@@ -493,6 +542,12 @@ function perms(u){
 }
 function can(feature){const p=perms();if(p==='ADMIN')return true;if(!p)return ['createInvoice','recordPayment','export'].includes(feature);
   return !!(p.features&&p.features[feature]);}
+// Whether the signed-in person can see money figures at all — admins always can. When an
+// admin has turned "hide money from staff" on, staff lose the dashboard target, revenue,
+// and full payments list entirely; they only ever see individual payments an admin has
+// explicitly flagged for their attention (see leadOf().flagForStaff).
+function isAdmin(){return perms()==='ADMIN';}
+function moneyHiddenFromMe(){return !isAdmin()&&!!S.settings.hideMoneyFromStaff;}
 function canSee(section){const p=perms();if(p==='ADMIN')return true;if(!p)return section!=='settings'?true:true;
   return p.sections?p.sections[section]!==false:true;}
 function audit(what){
@@ -520,7 +575,7 @@ function audit(what){
         S.settings.api=keep;migrate();syncState='ok';applyBrand();loadTeam();}
     }catch(e){}
   }
-  if(me){setDefaultFilter();checkInbox();setInterval(checkInbox,90000);}
+  if(me){setDefaultFilter();checkInbox();startBackgroundSync();}
   draw();
 })();
 const DEFAULT_API='https://script.google.com/macros/s/AKfycbz-IkoDNv4iZbdYVBmjWIfmANROWoGUBVSyQr-MfonUIQ1CxUrygbr3B7FmAeH4YsMivw/exec';
@@ -537,7 +592,8 @@ function migrate(){
   S.settings.stageOrder=S.settings.stageOrder&&S.settings.stageOrder.length?S.settings.stageOrder:OPEN_STAGES.slice();
   S.settings.customStages=S.settings.customStages||[];
   S.settings.logTypes=S.settings.logTypes&&S.settings.logTypes.length?S.settings.logTypes:['Call','WhatsApp','Email','Meeting','Note'];
-  S.settings.logOutcomes=S.settings.logOutcomes&&S.settings.logOutcomes.length?S.settings.logOutcomes:['Connected','No answer','Interested','Asked to call later','Not interested','—'];
+  S.settings.logOutcomes=S.settings.logOutcomes&&S.settings.logOutcomes.length?S.settings.logOutcomes:['Pending','Connected','No answer','Call later','Interested','Not interested'];
+  if(S.settings.hideMoneyFromStaff===undefined)S.settings.hideMoneyFromStaff=false;
   S.seq=S.seq||{};
   (S.leads||[]).forEach(l=>{
     l.statusUpdates=l.statusUpdates||[];l.work=l.work||'Not started';l.services=l.services||[];l.docs=l.docs||[];
@@ -583,6 +639,7 @@ function gate(err){
     <label class="f"><span>${first?'New password':'Password'}</span><input id="gp" type="password" autocomplete="current-password"></label>
     ${first?`<label class="f"><span>Repeat password</span><input id="gp2" type="password"></label>`:''}
     <button class="btn wide" id="gsign">${first?'Set password':'Sign in'}</button>
+    <div id="gstatus" class="sub" style="text-align:center;margin-top:8px;min-height:16px"></div>
     ${local?`<details class="help" style="margin-top:14px;border:0;padding:0;box-shadow:none">
       <summary class="eyebrow">Advanced: point this device at a different Sheet</summary>
       <label class="f" style="margin-top:9px"><span>Apps Script web app URL</span><input id="gapi" value="${esc(S.settings.api||'')}"></label>
@@ -594,6 +651,7 @@ function gate(err){
 }
 async function signIn(){
   const local=!S.settings.api,pass=$('#gp').value;
+  const btn=$('#gsign');
   if(local){
     if(!S.settings.localHash){
       if(pass.length<6)return gate('Use at least 6 characters.');
@@ -605,18 +663,36 @@ async function signIn(){
     if(await sha(S.settings.localSalt+'|'+pass)!==S.settings.localHash)return gate('Wrong password.');
     me={name:S.settings.localName||'Admin',role:'admin',username:'admin'};setDefaultFilter();return draw();
   }
+  // Visible loading state — Apps Script cold starts can genuinely take a few seconds,
+  // so the person needs to see it's working rather than staring at an unresponsive screen.
+  if(btn){btn.disabled=true;btn.innerHTML='<span class="spin"></span> Signing in…';}
+  const setStatus=(t)=>{const s=$('#gstatus');if(s)s.textContent=t;};
   try{
+    setStatus('Checking username and password…');
     const r=await api('login',{username:$('#gu').value.trim(),password:pass});
-    if(!r.ok)return gate(r.error||'Could not sign in.');
+    if(!r.ok){if(btn){btn.disabled=false;btn.textContent='Sign in';}return gate(r.error||'Could not sign in.');}
     cache.tok(r.token);me={name:r.name,role:r.role,username:r.username};cache.who(me);
+    // Show the app shell immediately with whatever's cached locally — don't make the
+    // person stare at a blank/loading screen for the full round-trip chain below.
+    setDefaultFilter();draw();
+    setStatus('');
     if(cache.unsynced()){try{await api('push',{data:S,tables:sheetRows()});cache.unsynced(false);}catch(e){}}
     const keep=S.settings.api,p=await api('pull');
     if(p.ok&&p.data){S=Object.assign(DEFAULTS(),p.data);S.settings=Object.assign(DEFAULTS().settings,p.data.settings||{});}
-    S.settings.api=keep;migrate();syncState='ok';cache.set(S);applyBrand();await loadTeam();
-    audit('Signed in');setDefaultFilter();save();draw();checkInbox();
-  }catch(e){gate('Could not reach the backend. Check the URL and that the deployment allows anyone.');}
+    S.settings.api=keep;migrate();syncState='ok';cache.set(S);applyBrand();
+    audit('Signed in');save();render();checkInbox();
+    startBackgroundSync();
+    loadTeam(); // team roster isn't needed to start using the app — load it in the background
+  }catch(e){if(btn){btn.disabled=false;btn.textContent='Sign in';}gate('Could not reach the backend. Check the URL and that the deployment allows anyone.');}
 }
-function signOut(){audit('Signed out');save();cache.tok(null);cache.who(null);me=null;draw();}
+let inboxTimer=null,refreshTimer=null;
+function startBackgroundSync(){
+  clearInterval(inboxTimer);clearInterval(refreshTimer);
+  inboxTimer=setInterval(checkInbox,90000);
+  refreshTimer=setInterval(backgroundRefresh,45000);
+}
+function stopBackgroundSync(){clearInterval(inboxTimer);clearInterval(refreshTimer);inboxTimer=null;refreshTimer=null;}
+function signOut(){audit('Signed out');save();cache.tok(null);cache.who(null);me=null;stopBackgroundSync();draw();}
 
 /* ---------- money helpers ---------- */
 const invTotals=i=>{const sub=(i.items||[]).reduce((s,x)=>s+(Number(x.qty)||0)*(Number(x.rate)||0),0);
@@ -704,7 +780,7 @@ function render(){
   <div class="scrim mobonly" id="sideScrim" style="display:none"></div>
   <nav class="side" id="sideNav">
     <img class="logo" src="${LOGO_UI}" alt="Get Set Startup"><div class="tagline">CRM · getsetstartup.biz</div>
-    ${['dash','leads','projects','team','tickets','invoices','money','reports','services','settings']
+    ${['dash','leads','projects','customers','team','tickets','invoices','money','reports','services','settings']
       .filter(id=>canSee(id)).map(id=>nav(id,NAVICON[id],SECTIONS.find(s=>s[0]===id)[1],counts[id])).join('')}
     <div class="foot"><div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">${avatar(Object.assign({},me,{photo:myPhoto()}),30)}
       <div><b style="display:block">${esc(me.name||me.username)}</b>${esc(me.role||'')}</div></div>
@@ -712,12 +788,21 @@ function render(){
       <button class="btn sm ghost" id="myProfile" style="width:100%;margin-bottom:6px">My profile</button>
       <button class="btn sm ghost" id="signout" style="width:100%">Sign out</button></div></nav>
     <main class="main" id="view"></main></div>`;
-  $('#view').innerHTML={dash:vDash,leads:vLeads,projects:vProjects,team:vTeam,tickets:vTickets,invoices:vInvoices,money:vMoney,reports:vReports,services:vServices,settings:vSettings}[route]();
+  $('#view').innerHTML={dash:vDash,leads:vLeads,projects:vProjects,customers:vCustomers,team:vTeam,tickets:vTickets,invoices:vInvoices,money:vMoney,reports:vReports,services:vServices,settings:vSettings}[route]();
   paintSync();
   $('#signout').onclick=signOut;
   $('#myProfile').onclick=()=>editProfile(me.username);
   $('#syncBadge').onclick=()=>{if(S.settings.api&&me)pushNow();};
   const rsb=$('#retrySyncBanner');rsb&&(rsb.onclick=()=>{if(S.settings.api&&me)pushNow();});
+  const mfy=$('#moneyFYSel');mfy&&(mfy.onchange=e=>{moneyFY=e.target.value;render();});
+  document.querySelectorAll('[data-coexpand]').forEach(b=>b.onclick=()=>{moneyCoOpen[b.dataset.coexpand]=!moneyCoOpen[b.dataset.coexpand];render();});
+  const custq=$('#custq');custq&&(custq.oninput=e=>{custFilt.q=e.target.value;});
+  const hmt=$('#hideMoneyToggle');hmt&&(hmt.onchange=()=>{S.settings.hideMoneyFromStaff=hmt.checked;
+    audit('Turned '+(hmt.checked?'on':'off')+' hide-money-from-staff');save();render();
+    toast(hmt.checked?'Staff will no longer see money figures':'Staff can see money figures again');});
+  custq&&(custq.onblur=()=>render());custq&&(custq.onkeydown=e=>{if(e.key==='Enter')render();});
+  document.querySelectorAll('[data-custopen]').forEach(el=>el.onclick=()=>openCustomer(el.dataset.custopen));
+  const fc=$('#fcompleted');fc&&(fc.onclick=()=>{projFilt.showCompleted=!projFilt.showCompleted;render();});
   document.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>{route=b.dataset.go;sideOpen=false;render();window.scrollTo(0,0);});
   const ham=$('#hamburger');ham&&(ham.onclick=()=>{sideOpen=!sideOpen;paintSideOpen();});
   const scrim=$('#sideScrim');scrim&&(scrim.onclick=()=>{sideOpen=false;paintSideOpen();});
@@ -868,21 +953,22 @@ function vDash(){
     ['Completed (won)',L.filter(l=>l.stage==='Completed').length],
     ['Lost / not interested',L.filter(l=>['Lost','Not Interested'].includes(l.stage)).length]];
 
+  const hideMoney=moneyHiddenFromMe();
   return `${syncWarningBanner()}${inboxBanner()}<div class="topbar"><div><h1>Hello, ${esc((me.name||'').split(' ')[0])}</h1>
     <p class="sub">${new Date().toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long'})} · ${mine.length} open leads with you</p></div>
     <div class="spacer"></div><button class="btn gold" data-go="leads">+ Add leads</button></div>
-  <div class="card" style="margin-bottom:12px"><h2>This month's target</h2>
+  ${hideMoney?'':`<div class="card" style="margin-bottom:12px"><h2>This month's target</h2>
     <div class="row" style="align-items:baseline"><div class="num" style="font-size:24px;font-weight:600">${inr(got)}</div>
       <div class="sub" style="text-align:right">${tgt?'of '+inr(tgt)+' · '+Math.round(got/tgt*100)+'%':'no target set'}</div></div>
     <div class="target"><i style="width:${tgt?Math.min(100,got/tgt*100):0}%"></i></div>
     <div class="row"><span class="eyebrow">${tgt&&got<tgt?inr(tgt-got)+' to go · '+(31-new Date().getDate())+' days left':tgt?'Target met':'Set one in Setup'}</span>
-      <span class="eyebrow" style="text-align:right">Weighted pipeline ${short(forecast)}</span></div></div>
+      <span class="eyebrow" style="text-align:right">Weighted pipeline ${short(forecast)}</span></div></div>`}
   <div class="kpis">
     ${kpi('Assigned to you',mine.filter(x=>OPEN_STAGES.includes(x.stage)).length,'still open','hi')}
     ${kpi('Calls today',callsToday,myCallsToday?myCallsToday+' by you':'across the team')}
     ${kpi('Calls this month',callsMonth,'logged in call history')}
-    ${kpi('Avg order value',short(aov),'per paying client')}
-    ${kpi('Balance pending',short(pending),'across projects',pending>0?'warn':'')}
+    ${hideMoney?'':kpi('Avg order value',short(aov),'per paying client')}
+    ${hideMoney?'':kpi('Balance pending',short(pending),'across projects',pending>0?'warn':'')}
     ${kpi('Open tickets',tk.length,tk.filter(t=>t.priority==='High').length+' high priority',tk.length?'bad':'')}
   </div>
   <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(300px,1fr));margin-top:14px">
@@ -900,17 +986,17 @@ function vDash(){
       `<div class="empty"><b>Nothing scheduled</b>Set a follow-up date on any lead.</div>`}</div>
     <div class="card"><h2>Hottest leads</h2>${hot.length?hot.map(({l,s})=>`<div class="row" style="align-items:center;border-bottom:1px solid var(--line);padding:7px 0">
       <div style="flex:2;min-width:130px"><b>${esc(l.name)}</b> ${scorePill(l)}<div class="eyebrow">${esc(leadSvcNames(l)||l.stage)} · ${esc(nameOf(l.assignedTo)||'unassigned')}</div></div>
-      <div class="money">${leadFee(l)?short(leadFee(l)):''}</div></div>`).join(''):`<div class="empty">No leads yet.</div>`}</div>
+      ${hideMoney?'':`<div class="money">${leadFee(l)?short(leadFee(l)):''}</div>`}</div>`).join(''):`<div class="empty">No leads yet.</div>`}</div>
     <div class="card"><h2>Latest updates</h2>${(()=>{const all=[];L.forEach(x=>(x.statusUpdates||[]).forEach(u=>all.push({l:x,u})));
       all.sort((a,b)=>b.u.at<a.u.at?-1:1);
       return all.length?all.slice(0,8).map(({l:x,u})=>`<div style="border-bottom:1px solid var(--line);padding:7px 0">
         <b>${esc(x.name)}</b> <span class="eyebrow">${esc(nameOf(u.by))} · ${ago(u.at)}</span><div style="font-size:13.5px">${esc(u.text)}</div></div>`).join('')
         :`<div class="empty"><b>No updates yet</b>Type a line under any lead and press enter.</div>`;})()}</div>
-    <div class="card"><h2>Team load</h2><div class="tablewrap"><table><thead><tr><th>Person</th><th>Open</th><th>Projects</th><th>Collected</th></tr></thead><tbody>
+    <div class="card"><h2>Team load</h2><div class="tablewrap"><table><thead><tr><th>Person</th><th>Open</th><th>Projects</th>${hideMoney?'':'<th>Collected</th>'}</tr></thead><tbody>
       ${team().map(t=>{const own=L.filter(l=>l.assignedTo===t.username);
         return `<tr><td>${esc(t.name)}</td><td class="num">${own.filter(l=>OPEN_STAGES.includes(l.stage)).length}</td>
         <td class="num">${own.filter(isProject).length}</td>
-        <td class="num">${short(S.payments.filter(p=>{const l=leadOf(p.leadId);return l&&l.assignedTo===t.username;}).reduce((s,p)=>s+Number(p.amount||0),0))}</td></tr>`;}).join('')}
+        ${hideMoney?'':`<td class="num">${short(S.payments.filter(p=>{const l=leadOf(p.leadId);return l&&l.assignedTo===t.username;}).reduce((s,p)=>s+Number(p.amount||0),0))}</td>`}</tr>`;}).join('')}
       </tbody></table></div></div>
   </div>`;
 }
@@ -966,7 +1052,7 @@ function leadCard(l,sno){
       <span class="pill tag sm">${esc(l.tag||'GSS')}</span>
       <b data-lead="${l.id}" class="cname" style="cursor:pointer">${sno?`<span class="sno">#${sno}</span>`:''}${esc(l.name)}</b>
       ${stagePill(l.stage)}${scorePill(l)}
-      <span class="cmoney">${leadFee(l)?inr(leadFee(l)):'—'}</span>
+      ${moneyHiddenFromMe()?'':`<span class="cmoney">${leadFee(l)?inr(leadFee(l)):'—'}</span>`}
     </div>
     <div class="cmeta">
       <span>${esc(l.customerId||'—')}</span>
@@ -978,7 +1064,7 @@ function leadCard(l,sno){
     </div>
     ${na?`<div class="next sm">→ ${esc(na)}</div>`:''}
     <div class="qa">
-      ${l.phone?`<a class="call" href="${tel(l.phone)}" title="Call">${ICON_CALL}</a><a class="wa" href="${wa(l.phone)}" target="_blank" title="WhatsApp">${ICON_WA}</a>`:''}
+      ${l.phone?`<a class="call" href="${tel(l.phone)}" data-logcall="${l.id}" title="Call">${ICON_CALL}</a><a class="wa" href="${wa(l.phone)}" data-logwa="${l.id}" target="_blank" title="WhatsApp">${ICON_WA}</a>`:''}
       ${dead?`<button class="tick on" data-restore="${l.id}" title="Bring back">↺</button>`:`
       <button class="tick ${['Interested','Quotation Sent','Advance Paid','Completed'].includes(l.stage)?'on':''}" data-tick="${l.id}" title="Interested">✓</button>
       <button class="cross ${l.stage==='Not Interested'?'on':''}" data-cross="${l.id}" title="Not interested">✕</button>`}
@@ -1168,6 +1254,18 @@ function drawParsed(){
 }
 
 /* ---------- status updates & assignment ---------- */
+// Clicking the Call or WhatsApp button logs it immediately — a real call was placed (or a
+// WhatsApp chat opened) the moment the dialer/WhatsApp app launches, whether or not it
+// connects. Outcome starts as "Pending" and can be updated afterward from the lead's call
+// log, but the entry itself — and the fact that a call happened today — is never lost.
+function logQuickCall(id,type){
+  const l=leadOf(id);if(!l)return;
+  l.logs=l.logs||[];
+  l.logs.push({at:new Date().toISOString(),by:me.username,type,outcome:'Pending',text:''});
+  l.lastTouch=new Date().toISOString();
+  save();
+  toast(type+' logged');
+}
 function addUpdate(id,text,silent){
   const l=leadOf(id);if(!l||!text.trim())return;
   l.statusUpdates=l.statusUpdates||[];
@@ -1239,6 +1337,7 @@ function openLead(id){
       ${can('recordPayment')?`<button data-quickpay="${l.id}"><span class="ic">${AICON.rupee}</span>Add payment</button>`:''}
       <button data-remind="${l.id}"><span class="ic">${AICON.clock}</span>Reminder</button>
       <button data-newtk="${l.id}"><span class="ic">${AICON.ticket}</span>Raise ticket</button>
+      ${isAdmin()&&S.settings.hideMoneyFromStaff?`<button data-flagstaff="${l.id}" style="${l.flagForStaff?'background:var(--accent);color:#3A2A00;border-color:var(--accent)':''}"><span class="ic">★</span>${l.flagForStaff?'Flagged for staff':'Flag for staff'}</button>`:''}
     </div>
     ${ph?`<div class="card"><div class="eyebrow">Ready-made messages</div><div class="row" style="margin-top:8px">
       <button class="btn sm ghost" data-tmpl="intro">Intro</button><button class="btn sm ghost" data-tmpl="quote">Send quote</button>
@@ -1273,6 +1372,7 @@ function openLead(id){
       <div class="row"><label class="f"><span>City</span><input data-ed="city" value="${esc(l.city||'')}"></label>
         <label class="f"><span>State (for GST)</span><input data-ed="state" value="${esc(l.state||'')}"></label>
         <label class="f"><span>PIN code</span><input data-ed="pin" value="${esc(l.pin||'')}" inputmode="numeric" maxlength="6"></label></div>
+      <label class="f"><span>Point of contact (prints on invoice — defaults to the lead's name)</span><input data-ed="poc" value="${esc(l.poc||'')}" placeholder="${esc(l.name||'Contact person name')}"></label>
       <label class="f"><span>Their GSTIN</span><input data-ed="gstin" value="${esc(l.gstin||'')}"></label>
       <label class="f"><span>Notes</span><textarea data-ed="notes" rows="3">${esc(l.notes||'')}</textarea></label></div>
     <div class="card"><h2>Log a call</h2>
@@ -1328,19 +1428,29 @@ function togglePaymentIssue(id){
 }
 
 /* ---------- projects ---------- */
+let projFilt={showCompleted:false};
 function vProjects(){
-  const rows=leadRows('projects');
-  const pending=rows.reduce((s,l)=>s+leadBalance(l.id),0);
-  const late=rows.filter(l=>l.dueDate&&l.dueDate<today()&&l.work!=='Final delivered');
-  return `<div class="topbar"><div><h1>Projects</h1><p class="sub">Leads that paid an advance.</p></div></div>
+  const all=leadRows('projects');
+  // "Completed" hides by default, but a project marked Completed that still has money
+  // outstanding must never disappear — that's a live balance check, not just trusting the
+  // stage label, since someone could set the stage manually even with a balance still due.
+  const isDone=l=>l.stage==='Completed'&&leadBalance(l.id)<=0.5;
+  const rows=projFilt.showCompleted?all.filter(isDone):all.filter(l=>!isDone(l));
+  const pending=all.reduce((s,l)=>s+leadBalance(l.id),0);
+  const late=all.filter(l=>l.dueDate&&l.dueDate<today()&&l.work!=='Final delivered');
+  const completedCount=all.filter(isDone).length;
+  return `<div class="topbar"><div><h1>Projects</h1><p class="sub">Leads that paid an advance.</p></div><div class="spacer"></div>
+    <button class="btn sm ${projFilt.showCompleted?'':'ghost'}" id="fcompleted">${projFilt.showCompleted?'← Back to ongoing':'Show completed ('+completedCount+')'}</button></div>
   <div class="kpis">
-    ${kpi('Running',rows.filter(l=>l.work!=='Final delivered').length,'not yet delivered')}
-    ${kpi('Delivered',rows.filter(l=>l.work==='Final delivered').length,'work complete','hi')}
+    ${kpi('Running',all.filter(l=>!isDone(l)).length,'ongoing or awaiting payment')}
+    ${kpi('Completed',completedCount,'delivered &amp; fully paid','hi')}
     ${kpi('Past due date',late.length,'delivery overdue',late.length?'bad':'')}
     ${kpi('Balance pending',short(pending),'after advances',pending>0?'warn':'')}
   </div>
   ${filterBar()}
-  <div id="leadList">${rows.length?rows.map(projectCard).join(''):`<div class="card"><div class="empty"><b>No projects yet</b>A lead becomes a project when you record an advance.</div></div>`}</div>`;
+  <div id="leadList">${rows.length?rows.map(projectCard).join(''):
+    projFilt.showCompleted?`<div class="card"><div class="empty"><b>No completed projects yet</b></div></div>`
+    :`<div class="card"><div class="empty"><b>No projects yet</b>A lead becomes a project when you record an advance.</div></div>`}</div>`;
 }
 function projectCard(l){
   const bal=leadBalance(l.id),paid=leadPaid(l.id),u=(l.statusUpdates||[]).slice(-1)[0];
@@ -1350,8 +1460,8 @@ function projectCard(l){
       ${l.paymentIssue?'<span class="pill r">payment issue</span>':''}
       ${l.dueDate?`<span class="pill ${l.dueDate<today()&&l.work!=='Final delivered'?'r':'n'}">due ${fmtD(l.dueDate)}</span>`:''}
       <div class="eyebrow">${esc(leadSvcNames(l)||'—')} · owner ${esc(nameOf(l.assignedTo)||'unassigned')}</div></div>
-      <div style="text-align:right"><div class="money">${inr(paid)} in</div>
-        <div class="eyebrow" style="color:${bal>0?'var(--bad)':'var(--ok)'}">${bal>0?inr(bal)+' pending':'fully paid'}</div></div></div>
+      <div style="text-align:right">${moneyHiddenFromMe()?(l.flagForStaff?`<div class="eyebrow" style="color:${bal>0?'var(--bad)':'var(--ok)'}">${bal>0?inr(bal)+' pending':'fully paid'}</div>`:'<div class="eyebrow">—</div>')
+        :`<div class="money">${inr(paid)} in</div><div class="eyebrow" style="color:${bal>0?'var(--bad)':'var(--ok)'}">${bal>0?inr(bal)+' pending':'fully paid'}</div>`}</div></div>
     <div class="steps">${WORK.map(w=>`<button data-work="${l.id}" data-w="${esc(w)}" class="${l.work===w?'on':''}">${w}</button>`).join('')}</div>
     <div class="row" style="align-items:center;margin-top:9px">
       <span class="eyebrow" style="flex:0 0 auto">Work assigned to</span>
@@ -1360,7 +1470,7 @@ function projectCard(l){
     </div>
     ${wa2.some(a=>a.username===me.username&&!a.confirmed)?`<button class="btn sm green wide" data-confirmwork="${l.id}" style="margin-top:7px">✓ Mark my part done</button>`:''}
     <div class="qa" style="margin-top:9px">
-      ${l.phone?`<a class="call" href="${tel(l.phone)}">${ICON_CALL} Call</a><a class="wa" href="${wa(l.phone)}" target="_blank">${ICON_WA} WhatsApp</a>`:''}
+      ${l.phone?`<a class="call" href="${tel(l.phone)}" data-logcall="${l.id}">${ICON_CALL} Call</a><a class="wa" href="${wa(l.phone)}" data-logwa="${l.id}" target="_blank">${ICON_WA} WhatsApp</a>`:''}
       <button data-lead="${l.id}">Open</button>
       <button data-issue="${l.id}" style="${l.paymentIssue?'border-color:var(--pink);color:var(--pink)':''}">${l.paymentIssue?'Clear issue':'Flag payment issue'}</button>
       ${bal>0.5?'<button data-quickpay="'+l.id+'">₹ Add payment</button>':''}
@@ -1711,7 +1821,41 @@ function recordPayment(invId){
 }
 
 /* ---------- money ---------- */
+function fyOf(dateStr){
+  const d=new Date(dateStr+(dateStr.length===10?'T00:00:00':''));
+  const y=d.getFullYear(),start=d.getMonth()>=3?y:y-1;
+  return start+'-'+String(start+1).slice(-2);
+}
+function currentFY(){return fyOf(today());}
+function fyBounds(fyLabel){
+  const startY=Number(fyLabel.split('-')[0]);
+  return {from:startY+'-04-01',to:(startY+1)+'-03-31'};
+}
+let moneyFY=currentFY(),moneyCoOpen={};
+function vMoneyRestricted(){
+  const flagged=S.leads.filter(l=>l.flagForStaff);
+  const withBalance=flagged.filter(l=>leadBalance(l.id)>0.5);
+  return `<div class="topbar"><div><h1>Payments</h1><p class="sub">Payments an admin has flagged for you to follow up on.</p></div></div>
+  <div class="kpis">
+    ${kpi('Flagged for you',flagged.length,'marked by an admin','hi')}
+    ${kpi('Still pending',withBalance.length,'need a follow-up',withBalance.length?'warn':'')}
+  </div>
+  <div class="card" style="margin-top:14px">
+    ${flagged.length?flagged.sort((a,b)=>leadBalance(b.id)-leadBalance(a.id)).map(l=>{const bal=leadBalance(l.id);
+      return `<div class="row" style="align-items:center;border-bottom:1px solid var(--line);padding:9px 0">
+      <div style="flex:2"><b data-lead="${l.id}" style="cursor:pointer">${esc(l.name)}</b> ${stagePill(l.stage)}
+        <div class="eyebrow">${esc(leadSvcNames(l)||'—')} · ${esc(nameOf(l.assignedTo)||'unassigned')}</div></div>
+      <div style="text-align:right;flex:0 0 auto">
+        ${bal>0.5?`<div class="num" style="color:var(--bad);font-weight:600">${inr(bal)} pending</div>`:`<div class="eyebrow" style="color:var(--ok)">fully paid</div>`}
+        <div style="margin-top:4px;display:flex;gap:6px;justify-content:flex-end">
+          ${l.phone?`<a class="btn sm ghost" href="${tel(l.phone)}">Call</a>`:''}
+          ${can('recordPayment')&&bal>0.5?`<button class="btn sm" data-quickpay="${l.id}">Record payment</button>`:''}
+        </div></div></div>`;}).join('')
+      :'<div class="empty"><b>Nothing flagged yet</b>An admin can flag a lead\'s payment from the lead page for it to show up here.</div>'}
+  </div>`;
+}
 function vMoney(){
+  if(moneyHiddenFromMe())return vMoneyRestricted();
   const open=openInvoices().filter(i=>i.type==='tax').sort((a,b)=>(a.dueDate||a.date)<(b.dueDate||b.date)?-1:1);
   const buckets=[['Not due yet',i=>days(i.dueDate||i.date)<=0],['1–30 days',i=>{const d=days(i.dueDate||i.date);return d>0&&d<=30;}],
     ['31–60 days',i=>{const d=days(i.dueDate||i.date);return d>30&&d<=60;}],['60+ days',i=>days(i.dueDate||i.date)>60]];
@@ -1804,7 +1948,48 @@ function vMoney(){
       <td class="num" style="font-size:12.5px">${fmtD(p.date)}</td><td>${esc(l?l.name:'—')}</td>
       <td><span class="pill n">${esc(p.kind||'payment')}</span></td><td>${esc(p.mode)}</td>
       <td class="num" style="font-weight:600">${inr(p.amount)}</td><td class="eyebrow">${esc(nameOf(p.by))}</td></tr>`;}).join('')
-      :`<tr><td colspan="6"><div class="empty">No payments logged yet.</div></td></tr>`}</tbody></table></div></div>`;
+      :`<tr><td colspan="6"><div class="empty">No payments logged yet.</div></td></tr>`}</tbody></table></div></div>
+  ${moneyByCompanySection()}`;
+}
+function moneyByCompanySection(){
+  const bounds=fyBounds(moneyFY);
+  const fyOptions=[];{const cy=currentFY();const startY=Number(cy.split('-')[0]);
+    for(let k=1;k>=-2;k--)fyOptions.push((startY+k)+'-'+String(startY+k+1).slice(-2));}
+  const rows=S.companies.map(c=>{
+    const leadsForCo=S.leads.filter(l=>l.companyId===c.id);
+    const projects=leadsForCo.filter(isProject);
+    const invForCo=S.invoices.filter(i=>i.companyId===c.id&&i.type==='tax');
+    const invInFY=invForCo.filter(i=>i.date>=bounds.from&&i.date<=bounds.to);
+    const paidInFY=S.payments.filter(p=>{const inv=S.invoices.find(x=>x.id===p.invoiceId);
+      return inv&&inv.companyId===c.id&&p.date>=bounds.from&&p.date<=bounds.to;})
+      .reduce((s,p)=>s+Number(p.amount||0),0);
+    const totalValue=invInFY.reduce((s,i)=>s+invTotals(i).total,0);
+    const pendingInv=invForCo.filter(i=>dueOn(i)>0.5);
+    const pendingTotal=pendingInv.reduce((s,i)=>s+dueOn(i),0);
+    return {c,projects,invInFY,paidInFY,totalValue,pendingInv,pendingTotal};
+  }).filter(r=>r.projects.length||r.invInFY.length||r.pendingInv.length);
+  return `<div class="card" style="margin-top:14px"><h2>Payments by company</h2>
+    <div class="row" style="margin-bottom:10px;align-items:center">
+      <span class="eyebrow">Financial year</span>
+      <select id="moneyFYSel">${fyOptions.map(f=>`<option value="${f}"${moneyFY===f?' selected':''}>FY ${f}</option>`).join('')}</select>
+    </div>
+    <div class="tablewrap"><table><thead><tr><th>Company</th><th>Projects</th><th>Total value</th><th>Received in FY</th><th>Pending (all time)</th><th>Projects pending</th><th></th></tr></thead><tbody>
+    ${rows.length?rows.map(r=>`<tr><td><b>${esc(r.c.name)}</b><div class="eyebrow">${esc(r.c.legal||r.c.name)}</div></td>
+      <td class="num">${r.projects.length}</td>
+      <td class="num">${short(r.totalValue)}</td>
+      <td class="num" style="color:var(--ok);font-weight:600">${short(r.paidInFY)}</td>
+      <td class="num" style="${r.pendingTotal>0?'color:var(--bad);font-weight:600':''}">${r.pendingTotal>0?short(r.pendingTotal):'—'}</td>
+      <td class="num">${r.pendingInv.length||'—'}</td>
+      <td><button class="btn sm ghost" data-coexpand="${r.c.id}">${moneyCoOpen[r.c.id]?'Hide':'View projects'}</button></td></tr>
+      ${moneyCoOpen[r.c.id]?`<tr><td colspan="7" style="padding:0"><div class="tablewrap" style="padding:8px 0 12px"><table>
+        <thead><tr><th>Project</th><th>Stage</th><th>Work</th><th>Value</th><th>Balance</th></tr></thead><tbody>
+        ${r.projects.length?r.projects.map(l=>`<tr class="click" data-lead="${l.id}"><td>${esc(l.name)}</td><td>${stagePill(l.stage)}</td>
+          <td><span class="pill n">${esc(l.work)}</span></td><td class="num">${inr(leadFee(l))}</td>
+          <td class="num" style="${leadBalance(l.id)>0.5?'color:var(--bad);font-weight:600':''}">${leadBalance(l.id)>0.5?inr(leadBalance(l.id)):'—'}</td></tr>`).join('')
+          :'<tr><td colspan="5"><div class="empty">No projects booked with this company.</div></td></tr>'}
+        </tbody></table></div></td></tr>`:''}`).join('')
+      :'<tr><td colspan="7"><div class="empty">No projects booked yet.</div></td></tr>'}
+    </tbody></table></div></div>`;
 }
 
 /* ---------- reminders, mail, print ---------- */
@@ -1906,7 +2091,11 @@ function printInvoice(invId){
       <tr><td>${esc(l.customerId||'—')}</td><td>${esc((l.company&&l.company.trim())||l.name||'—')}</td><td>${esc(l.gstin||'—')}</td></tr>
       <tr><th>${numLabel}</th><th>Contact Number</th><th>Date</th></tr>
       <tr><td>${esc(i.number)}</td><td>${esc(l.phone||'—')}</td><td>${fmtD(i.date)}</td></tr></table>
-    <div class="addr"><b>Address</b>${esc([l.name!==l.company?l.name:'',l.addr,l.city,l.state,l.pin].filter(Boolean).join(', ')||'—')}</div>
+    <div class="addr"><b>Address</b>
+      <div>${esc(l.addr||'—')}</div>
+      <div>${esc([l.city,l.state].filter(Boolean).join(', ')||'—')}${l.pin?' - '+esc(l.pin):''}</div>
+      <div style="margin-top:4px"><b>Point of Contact:</b> ${esc((l.poc&&l.poc.trim())||l.name||'—')}</div>
+    </div>
     <table class="items"><thead><tr><th>Particulars</th><th class="c">SAC Code</th><th class="c">Qty,</th><th class="r">Price</th><th class="r">Amount</th></tr></thead>
       <tbody>${rows}</tbody></table>
     <table class="sums">
@@ -1972,6 +2161,64 @@ function noticesCard(){
   </div>`;
 }
 let teamFilt={person:''};
+/* ---------- customer database ---------- */
+let custFilt={q:''};
+function vCustomers(){
+  const byId={};
+  S.leads.forEach(l=>{const cid=l.customerId||l.id;(byId[cid]=byId[cid]||[]).push(l);});
+  let rows=Object.entries(byId).map(([cid,leads])=>{
+    const primary=leads.slice().sort((a,b)=>a.createdAt.localeCompare(b.createdAt))[0];
+    const totalPaid=leads.reduce((s,l)=>s+leadPaid(l.id),0);
+    const totalValue=leads.reduce((s,l)=>s+leadFee(l),0);
+    const hasProject=leads.some(isProject);
+    return {cid,leads,primary,totalPaid,totalValue,hasProject};
+  });
+  if(custFilt.q){const q=custFilt.q.toLowerCase();
+    rows=rows.filter(r=>[r.cid,r.primary.name,r.primary.phone,r.primary.email,r.primary.company,r.primary.addr,r.primary.city]
+      .filter(Boolean).join(' ').toLowerCase().includes(q));}
+  rows.sort((a,b)=>b.primary.createdAt.localeCompare(a.primary.createdAt));
+  return `<div class="topbar"><div><h1>Customer Database</h1><p class="sub">${rows.length} customers · every repeat enquiry links back to the same record by phone number.</p></div></div>
+  <div class="row" style="margin-bottom:12px"><input id="custq" placeholder="Search name, phone, customer ID, address…" value="${esc(custFilt.q)}"></div>
+  <div class="card" style="padding:0"><div class="tablewrap"><table>
+    <thead><tr><th>Customer ID</th><th>Name</th><th>Phone</th><th>Business</th><th>Address</th><th>Leads</th><th>Projects</th><th>Total value</th><th>Paid</th></tr></thead>
+    <tbody>${rows.length?rows.map(r=>{const addr=[r.primary.city,r.primary.state].filter(Boolean).join(', ');
+      return `<tr class="click" data-custopen="${r.cid}">
+      <td class="mono">${esc(r.cid)}</td>
+      <td><b>${esc(r.primary.name)}</b>${r.leads.length>1?` <span class="pill n">${r.leads.length} leads</span>`:''}</td>
+      <td>${esc(r.primary.phone||'—')}</td>
+      <td class="eyebrow">${esc(r.primary.company||'—')}</td>
+      <td class="eyebrow">${esc(addr||'—')}</td>
+      <td class="num">${r.leads.length}</td>
+      <td class="num">${r.leads.filter(isProject).length||'—'}</td>
+      <td class="num">${r.totalValue?inr(r.totalValue):'—'}</td>
+      <td class="num" style="color:var(--ok);font-weight:600">${r.totalPaid?inr(r.totalPaid):'—'}</td></tr>`;}).join('')
+      :`<tr><td colspan="9"><div class="empty"><b>No customers yet</b>Add a lead and it appears here automatically.</div></td></tr>`}
+    </tbody></table></div></div>`;
+}
+function openCustomer(cid){
+  const leads=S.leads.filter(l=>(l.customerId||l.id)===cid).sort((a,b)=>b.createdAt.localeCompare(a.createdAt));
+  if(!leads.length)return;
+  const primary=leads[0];
+  layer(`<div class="dhead"><div style="flex:1"><div class="eyebrow">Customer ID ${esc(cid)}</div>
+    <h1 style="font-size:19px">${esc(primary.name)}</h1>
+    <div class="sub">${esc(primary.company||'')}${primary.phone?' · '+esc(primary.phone):''}</div></div><button class="x" data-close>✕</button></div>
+  <div class="dbody">
+    <div class="card"><h2>Contact details</h2>
+      <div class="row"><div style="flex:1"><span class="eyebrow">Phone</span><div>${esc(primary.phone||'—')}</div></div>
+        <div style="flex:1"><span class="eyebrow">Email</span><div>${esc(primary.email||'—')}</div></div></div>
+      <div class="row" style="margin-top:8px"><div style="flex:1"><span class="eyebrow">Address</span>
+        <div>${esc(primary.addr||'—')}</div><div>${esc([primary.city,primary.state].filter(Boolean).join(', ')||'—')}${primary.pin?' - '+esc(primary.pin):''}</div></div>
+        <div style="flex:1"><span class="eyebrow">GSTIN</span><div>${esc(primary.gstin||'—')}</div></div></div></div>
+    <div class="card" style="margin-top:12px"><h2>All leads &amp; projects (${leads.length})</h2>
+      ${leads.map(l=>`<div class="row click" data-lead="${l.id}" style="align-items:center;border-bottom:1px solid var(--line);padding:9px 0;cursor:pointer">
+        <div style="flex:2"><b>${esc(l.name)}</b> ${stagePill(l.stage)}
+          <div class="eyebrow">${esc(leadSvcNames(l)||'no service yet')} · ${fmtD(l.createdAt.slice(0,10))}</div></div>
+        <div style="text-align:right;flex:0 0 auto"><div class="num">${leadFee(l)?inr(leadFee(l)):'—'}</div>
+          ${isProject(l)&&leadBalance(l.id)>0.5?`<div class="eyebrow" style="color:var(--bad)">${inr(leadBalance(l.id))} due</div>`:''}</div>
+        </div>`).join('')}</div>
+  </div>`,()=>render());
+  document.querySelectorAll('[data-lead]').forEach(el=>el.onclick=e=>{e.stopPropagation();openLead(el.dataset.lead);});
+}
 function vTeam(){
   const L=S.leads,people=team();
   const per=people.map(t=>{
@@ -2115,6 +2362,25 @@ function vReports(){
     <div class="card"><h2>Leads by source</h2>${barsHTML(SOURCES.map(s=>[s,L.filter(l=>l.source===s).length]))}</div>
     <div class="card"><h2>Win rate by source</h2>${barsHTML(SOURCES.map(s=>{const all=L.filter(l=>l.source===s);
       return [s,all.length?Math.round(all.filter(l=>leadPaid(l.id)>0).length/all.length*100):0];}))}</div>
+    <div class="card" style="grid-column:1/-1"><h2>Closure rate by service type</h2>
+      <p class="sub" style="margin-bottom:8px">How often a lead asking for each service actually converts, and how much it's worth when it does. A lead counts toward every service it includes.</p>
+      <div class="tablewrap"><table><thead><tr><th>Service</th><th>Leads</th><th>Converted</th><th>Closure rate</th><th>Avg. value when won</th><th>Total revenue</th></tr></thead><tbody>
+      ${(()=>{
+        const rows=S.services.map(sv=>{
+          const all=L.filter(l=>(l.services||[]).some(s=>s.code===sv.code));
+          const won=all.filter(l=>leadPaid(l.id)>0);
+          const wonValue=won.reduce((s,l)=>s+leadFee(l),0);
+          return {sv,all,won,wonValue,rate:all.length?won.length/all.length:0};
+        }).filter(r=>r.all.length).sort((a,b)=>b.rate-a.rate);
+        return rows.length?rows.map(({sv,all,won,wonValue,rate})=>
+          `<tr><td><b>${esc(sv.name)}</b> <span class="eyebrow">${esc(sv.code)}</span></td>
+          <td class="num">${all.length}</td><td class="num">${won.length}</td>
+          <td class="num" style="font-weight:600;${rate>=0.4?'color:var(--ok)':''}">${Math.round(rate*100)}%</td>
+          <td class="num">${won.length?inr(Math.round(wonValue/won.length)):'—'}</td>
+          <td class="num" style="font-weight:600">${short(wonValue)}</td></tr>`).join('')
+          :'<tr><td colspan="6"><div class="empty">No services quoted yet.</div></td></tr>';
+      })()}
+      </tbody></table></div></div>
     <div class="card" style="grid-column:1/-1"><h2>Lead source ROI</h2>
       <p class="sub" style="margin-bottom:8px">Revenue and conversion per source, with ad spend and ROI wherever a source has logged ad expenses attached to it (Setup → link a source's name to an expense category, or just compare cost against Google/Facebook Ads totals below).</p>
       <div class="tablewrap"><table><thead><tr><th>Source</th><th>Leads</th><th>Converted</th><th>Conv. rate</th><th>Revenue</th><th>Ad spend (all time)</th><th>ROI</th></tr></thead><tbody>
@@ -2181,6 +2447,10 @@ function vSettings(){
       :`<p class="sub" style="margin-top:8px">You're signed in as staff, so you can't create logins — ask an admin to do it from here.</p>`}`
       :`<p class="sub">This device is running in <b>local mode</b> — one password, no separate logins. To add team members with their own username and password, connect a Google Sheet first (below, under "Database"), sign back in, then this card will show a "+ Create a login" button.</p>
       <button class="btn ghost wide" id="chPass" style="margin-top:10px">Edit your name, photo &amp; password</button>`}</div>
+  ${can('manageUsers')?`<div class="card" style="margin-top:12px"><h2>Money visibility for staff</h2>
+    <p class="sub" style="margin-bottom:10px">When turned on, staff logins lose the dashboard target, revenue figures, and the full Payments page entirely. They'll only see individual leads you've flagged (from the lead's page, "Flag for staff") — useful for having them chase a specific pending payment without seeing the business's overall numbers.</p>
+    <label class="checkline"><input type="checkbox" id="hideMoneyToggle" ${S.settings.hideMoneyFromStaff?'checked':''}> Hide money figures from staff — they only see leads I flag</label>
+  </div>`:''}
   <div class="card" style="margin-top:12px"><h2>This month's target</h2>
     <div class="row"><label class="f"><span>Target for ${m}</span><input type="number" id="tgtMonth" value="${S.settings.targets[m]||''}" placeholder="e.g. 300000"></label>
     <label class="f"><span>Default monthly target</span><input type="number" data-set="defaultTarget" value="${S.settings.defaultTarget||''}"></label></div>
@@ -2554,9 +2824,15 @@ function wire(){
   document.querySelectorAll('[data-restore]').forEach(el=>el.onclick=()=>{
     const l=leadOf(el.dataset.restore);l.stage='New';
     addUpdate(l.id,'Brought back into the active pipeline',true);audit('Restored '+l.name+' from dropped');save();render();toast('Lead restored');});
+  document.querySelectorAll('[data-logcall]').forEach(el=>el.onclick=e=>{e.stopPropagation();logQuickCall(el.dataset.logcall,'Call');});
+  document.querySelectorAll('[data-logwa]').forEach(el=>el.onclick=e=>{e.stopPropagation();logQuickCall(el.dataset.logwa,'WhatsApp');});
   document.querySelectorAll('[data-pri]').forEach(el=>el.onchange=e=>{e.stopPropagation();
     const l=leadOf(el.dataset.pri);l.priority=el.checked;save();
     const card=el.closest('.lead');if(card)card.classList.toggle('pri',l.priority);});
+  document.querySelectorAll('[data-flagstaff]').forEach(el=>el.onclick=()=>{
+    const l=leadOf(el.dataset.flagstaff);l.flagForStaff=!l.flagForStaff;
+    audit((l.flagForStaff?'Flagged':'Unflagged')+' '+l.name+' for staff visibility');
+    save();openLead(l.id);toast(l.flagForStaff?'Now visible to staff on Payments':'Removed from staff view');});
   document.querySelectorAll('[data-work]').forEach(el=>el.onclick=()=>{
     const l=leadOf(el.dataset.work);l.work=el.dataset.w;
     if(l.work==='Final delivered'&&leadBalance(l.id)<=0.5)l.stage='Completed';
@@ -2722,8 +2998,8 @@ function customerLeads(customerId){return S.leads.filter(l=>l.customerId===custo
 function customerInvoices(customerId){const ids=customerLeads(customerId).map(l=>l.id);return S.invoices.filter(i=>ids.includes(i.leadId));}
 function customerPayments(customerId){const ids=customerLeads(customerId).map(l=>l.id);return S.payments.filter(p=>ids.includes(p.leadId));}
 function newLead(o){
-  return Object.assign({id:uid('ld'),name:'',phone:'',altPhone:'',email:'',company:'',addr:'',city:'',state:'',pin:'',gstin:'',source:'Other',tag:'GSS',
-    customerId:'',services:[],fees:0,stage:'New',work:'Not started',workAssignees:[],statusUpdates:[],docs:[],notes:'',logs:[],followUp:'',dueDate:'',priority:false,
+  return Object.assign({id:uid('ld'),name:'',phone:'',altPhone:'',email:'',company:'',addr:'',city:'',state:'',pin:'',poc:'',gstin:'',source:'Other',tag:'GSS',
+    customerId:'',services:[],fees:0,stage:'New',work:'Not started',workAssignees:[],statusUpdates:[],docs:[],notes:'',logs:[],followUp:'',dueDate:'',priority:false,flagForStaff:false,
     assignedTo:me?me.username:'',assignedBy:me?me.username:'',assignedAt:new Date().toISOString(),paymentIssue:false,companyId:S.companies[0].id,owner:me?me.username:'',
     createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),lastTouch:''},o);
 }
