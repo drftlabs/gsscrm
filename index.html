@@ -390,7 +390,7 @@ const DEFAULTS=()=>({
     perms:{},targets:{},defaultTarget:0,defaultTerms:'1) Advance 50%\\n2) 25% on first draft, Balance 25% on completion\\n3) Delivery in approx. 10 working days(s)\\n4) 6 Months Support & Revision Period',
     stageOrder:OPEN_STAGES.slice(),customStages:[],
     logTypes:['Call','WhatsApp','Email','Meeting','Note'],logOutcomes:['Pending','Connected','No answer','Call later','Interested','Not interested'],
-    hideMoneyFromStaff:false,restrictStaffToOwn:false,
+    hideMoneyFromStaff:false,restrictStaffToOwn:false,tagBundles:[],
     msgTemplates:[
       {id:'intro',label:'Intro',body:'Hello {name}, this is {me} from {company}. Thank you for reaching out{svc_about}. When would be a good time for a short call to understand your requirement?'},
       {id:'quote',label:'Send quote',body:'Hi {name}, as discussed, here is our proposal{svc_for}{fee_colon}. It covers end-to-end preparation with revisions until you are satisfied. Shall I send the quotation so we can begin?'},
@@ -650,6 +650,7 @@ function migrate(){
   S.settings.logOutcomes=S.settings.logOutcomes&&S.settings.logOutcomes.length?S.settings.logOutcomes:['Pending','Connected','No answer','Call later','Interested','Not interested'];
   if(S.settings.hideMoneyFromStaff===undefined)S.settings.hideMoneyFromStaff=false;
   if(S.settings.restrictStaffToOwn===undefined)S.settings.restrictStaffToOwn=false;
+  S.settings.tagBundles=S.settings.tagBundles||[];
   S.settings.msgTemplates=S.settings.msgTemplates&&S.settings.msgTemplates.length?S.settings.msgTemplates:[
     {id:'intro',label:'Intro',body:'Hello {name}, this is {me} from {company}. Thank you for reaching out{svc_about}. When would be a good time for a short call to understand your requirement?'},
     {id:'quote',label:'Send quote',body:'Hi {name}, as discussed, here is our proposal{svc_for}{fee_colon}. It covers end-to-end preparation with revisions until you are satisfied. Shall I send the quotation so we can begin?'},
@@ -1171,8 +1172,11 @@ let filt={q:'',stage:'',svc:'',assignee:'all',sort:'assigned',source:'',tag:'',s
 function leadRows(scope){
   let rows=visibleLeads().filter(l=>scope==='projects'?isProject(l):!isProject(l));
   const q=filt.q.toLowerCase();
+  const bundleTagSet=filt.tag&&filt.tag.startsWith('bundle:')
+    ?new Set(((S.settings.tagBundles||[]).find(b=>b.code===filt.tag.slice(7))||{tags:[]}).tags):null;
   rows=rows.filter(l=>(!q||[l.name,l.phone,l.email,l.customerId,leadSvcNames(l),l.company].join(' ').toLowerCase().includes(q))
-    &&(!filt.stage||l.stage===filt.stage)&&(!filt.source||l.source===filt.source)&&(!filt.tag||l.tag===filt.tag)
+    &&(!filt.stage||l.stage===filt.stage)&&(!filt.source||l.source===filt.source)
+    &&(bundleTagSet?bundleTagSet.has(l.tag):(!filt.tag||l.tag===filt.tag))
     &&(!filt.svc||(l.services||[]).some(s=>s.code===filt.svc))
     &&(!filt.priority||l.priority)
     &&(!filt.uncalled||(l.stage==='New'&&!(l.logs||[]).some(x=>x.type==='Call')))
@@ -1197,7 +1201,8 @@ function filterBar(scope){
       :`<select id="fass"><option value="all"${filt.assignee==='all'?' selected':''}>Everyone (${S.leads.filter(l=>!DEAD.includes(l.stage)).length})</option>
       <option value="none"${filt.assignee==='none'?' selected':''}>Unassigned (${S.leads.filter(l=>!l.assignedTo&&!DEAD.includes(l.stage)).length})</option>
       ${team().map(t=>`<option value="${esc(t.username)}"${filt.assignee===t.username?' selected':''}>${esc(t.name)} (${cnt(t.username)})${t.username===me.username?' ★':''}</option>`).join('')}</select>`}
-    <select id="ftag"><option value="">All tags</option>${S.tags.map(t=>`<option${filt.tag===t?' selected':''}>${esc(t)}</option>`).join('')}</select>
+    <select id="ftag"><option value="">All tags</option>${S.tags.map(t=>`<option${filt.tag===t?' selected':''}>${esc(t)}</option>`).join('')}
+      ${(S.settings.tagBundles||[]).length?`<optgroup label="Bundles">${(S.settings.tagBundles||[]).map(b=>`<option value="bundle:${esc(b.code)}"${filt.tag==='bundle:'+b.code?' selected':''}>${esc(b.code)} (${b.tags.join('+')})</option>`).join('')}</optgroup>`:''}</select>
     <select id="fstage"><option value="">All stages</option>${STAGES.concat(S.settings.customStages||[]).map(s=>`<option${filt.stage===s?' selected':''}>${s}</option>`).join('')}</select>
     <select id="fsvc"><option value="">All services</option>${S.services.map(s=>`<option value="${s.code}"${filt.svc===s.code?' selected':''}>${esc(s.name)}</option>`).join('')}</select>
     <select id="fsort">${[['assigned','Latest assigned'],['updated','Latest update'],['score','Hottest first'],['newest','Newest added'],['name','Name A–Z'],['value','Highest value'],['service','Service']]
@@ -1314,9 +1319,11 @@ function importCSV(text){
       (/interest/i.test(st)?'Interested':/quot|propos/i.test(st)?'Quotation Sent':/advance|paid/i.test(st)?'Advance Paid':
        /fake/i.test(st)?'Fake':/hold/i.test(st)?'On Hold':/not|reject|no/i.test(st)&&st?'Not Interested':/done|complete/i.test(st)?'Completed':'New');
     const d=S.leads.find(l=>phone&&cleanPh(l.phone).slice(-10)===phone);
+    const rawTag=(g(idx.tag)||'').toUpperCase();
+    const tb=(S.settings.tagBundles||[]).find(x=>x.code===rawTag);
     return {name:g(idx.name)||'Unnamed',phone,email:g(idx.email),company:g(idx.company),city:'',
       codes,fee:feeFrom(g(idx.fee).replace(/[^\d.kKlL]/g,''))||Number(g(idx.fee).replace(/[^\d.]/g,''))||null,
-      tag:(g(idx.tag)||'').toUpperCase()||'GSS',stage,msg:st?'Imported with status: '+st:'Imported from CSV',dupe:d?d.id:null,csv:true};
+      tag:(tb&&tb.tags.length?tb.tags[0]:rawTag)||'GSS',stage,msg:st?'Imported with status: '+st:'Imported from CSV',dupe:d?d.id:null,csv:true};
   }).filter(p=>p.name!=='Unnamed'||p.phone);
   drawParsed();
   toast(parsed.length+' rows read'+(hasHeader?'':' (no header row found — assumed name, mobile, service, fee, status)'));
@@ -1354,7 +1361,9 @@ function parseShort(block){
     let codeRun=[]; // codes seen since the last number/non-code token
     toks.forEach((t,ti)=>{
       const up=t.toUpperCase().replace(/[^A-Z]/g,'');
-      if(li===0&&ti===0&&!tag&&up.length>=2&&up.length<=6&&t===t.toUpperCase()&&!codeFrom(t)&&!BUNDLES[up]&&!/\d/.test(t)){tag=up;return;}
+      if(li===0&&ti===0&&!tag&&up.length>=2&&up.length<=6&&t===t.toUpperCase()&&!codeFrom(t)&&!BUNDLES[up]&&!/\d/.test(t)){
+        const tb=(S.settings.tagBundles||[]).find(x=>x.code===up);
+        tag=tb&&tb.tags.length?tb.tags[0]:up;return;}
       if(/^\+?\d[\d\s-]{8,}$/.test(t)&&!phone){phone=t;return;}
       const bundleExpand=BUNDLES[up];
       if(bundleExpand){bundleExpand.forEach(c=>{if(!codes.includes(c))codes.push(c);});codeRun=bundleExpand.slice();return;}
@@ -1634,21 +1643,31 @@ let projFilt={showCompleted:false};
 function vProjects(){
   filt.uncalled=false; // this filter only makes sense on Leads; never let it silently persist here
   const all=leadRows('projects');
-  // "Completed" hides by default, but a project marked Completed that still has money
-  // outstanding must never disappear — that's a live balance check, not just trusting the
-  // stage label, since someone could set the stage manually even with a balance still due.
-  const isDone=l=>l.stage==='Completed'&&leadBalance(l.id)<=0.5;
+  // "Completed" hides by default. Trust an explicit completion the same way regardless of how
+  // it was set — via the "Mark completed" button or the auto-complete-on-full-payment path —
+  // rather than re-deriving "is it really done" from a balance estimate every time it renders.
+  // That balance estimate falls back to a GST-inclusive guess when no invoice/quotation exists,
+  // which routinely never reaches exactly zero (rounding, discounts, GST never separately
+  // invoiced) — so a project someone had deliberately marked done was staying stuck visible
+  // forever. The one thing that still forces it back into view is a payment issue flagged on
+  // it, since that's a genuine "this still needs attention" signal, not a balance quirk.
+  const isDone=l=>l.stage==='Completed'&&!l.paymentIssue;
   const rows=projFilt.showCompleted?all.filter(isDone):all.filter(l=>!isDone(l));
-  const pending=all.reduce((s,l)=>s+leadBalance(l.id),0);
+  const thisMonth=month();
+  const startedThisMonth=all.filter(l=>l.createdAt.slice(0,7)===thisMonth||(l.statusUpdates||[]).some(u=>u.at.slice(0,7)===thisMonth&&/advance|paid/i.test(u.text)));
+  const pending=all.filter(l=>!isDone(l)).reduce((s,l)=>s+leadBalance(l.id),0);
   const late=all.filter(l=>l.dueDate&&l.dueDate<today()&&l.work!=='Final delivered');
   const completedCount=all.filter(isDone).length;
+  const completedThisMonth=all.filter(l=>isDone(l)&&(l.statusUpdates||[]).some(u=>u.at.slice(0,7)===thisMonth&&/completed/i.test(u.text))).length;
   return `<div class="topbar"><div><h1>Projects</h1><p class="sub">Leads that paid an advance.</p></div><div class="spacer"></div>
     <button class="btn sm ${projFilt.showCompleted?'':'ghost'}" id="fcompleted">${projFilt.showCompleted?'← Back to ongoing':'Show completed ('+completedCount+')'}</button></div>
   <div class="kpis">
-    ${kpi('Running',all.filter(l=>!isDone(l)).length,'ongoing or awaiting payment')}
-    ${kpi('Completed',completedCount,'delivered &amp; fully paid','hi')}
+    ${kpi('Total this month',startedThisMonth.length,'projects started in '+new Date(thisMonth+'-01').toLocaleDateString('en-IN',{month:'long'}))}
+    ${kpi('Completed this month',completedThisMonth,'marked done this month','hi')}
+    ${kpi('Ongoing',all.filter(l=>!isDone(l)).length,'not yet completed')}
+    ${kpi('Completed (all time)',completedCount,'delivered &amp; marked done','hi')}
     ${kpi('Past due date',late.length,'delivery overdue',late.length?'bad':'')}
-    ${kpi('Balance pending',short(pending),'after advances',pending>0?'warn':'')}
+    ${kpi('Balance pending',short(pending),'across ongoing projects',pending>0?'warn':'')}
   </div>
   ${filterBar('projects')}
   <div id="leadList">${rows.length?rows.map(projectCard).join(''):
@@ -2694,7 +2713,16 @@ function vServices(){
   <div class="card" style="margin-top:12px"><h2>Lead tags</h2>
     <p class="sub">The first word of a pasted line becomes the tag, and every tag is a filter.</p>
     <div class="chips" style="margin-top:8px">${S.tags.map((t,i)=>`<span class="pill tag">${esc(t)} ${ed?`<span data-rmtag="${i}" style="cursor:pointer">✕</span>`:''}</span>`).join('')}</div>
-    ${ed?`<div class="row" style="margin-top:10px"><input id="newTag" placeholder="e.g. PYCM"><button class="btn sm ghost" id="addTag" style="flex:0 0 auto">Add tag</button></div>`:''}</div>`;
+    ${ed?`<div class="row" style="margin-top:10px"><input id="newTag" placeholder="e.g. PYCM"><button class="btn sm ghost" id="addTag" style="flex:0 0 auto">Add tag</button></div>`:''}</div>
+  <div class="card" style="margin-top:12px"><h2>Tag bundles</h2>
+    <p class="sub">Group several tags under one shortcut code — type the bundle code while pasting a lead and it gets recorded under the first tag in the group. Also usable as a combined filter on the Leads screen (shows leads carrying any tag in the group).</p>
+    ${(S.settings.tagBundles||[]).length?(S.settings.tagBundles||[]).map((b,ix)=>`<div class="row" style="align-items:center;border-bottom:1px solid var(--line);padding:8px 0">
+      <div style="flex:2"><b class="mono">${esc(b.code)}</b> <span class="eyebrow">= ${b.tags.map(esc).join(' + ')}</span></div>
+      ${ed?`<button class="btn sm ghost" data-rmtagbundle="${ix}" style="flex:0 0 auto">Remove</button>`:''}</div>`).join(''):'<div class="empty">No tag bundles yet.</div>'}
+    ${ed?`<div class="card" style="margin-top:10px;background:var(--bg)"><h3 style="margin:0 0 8px;font-size:13px">New bundle</h3>
+      <div class="row"><input id="newTagBundleCode" placeholder="Shortcut code, e.g. VIP" style="max-width:140px" class="mono">
+      <input id="newTagBundleTags" placeholder="Tags in this group, comma separated — e.g. GSS, PYCM"></div>
+      <button class="btn sm ghost wide" id="addTagBundle" style="margin-top:8px">+ Add tag bundle</button></div>`:''}</div>`;
 }
 
 /* ---------- setup ---------- */
@@ -3208,6 +3236,16 @@ function wire(){
     $('#addTag').onclick=()=>{const v=$('#newTag').value.trim().toUpperCase();if(!v)return;
       if(!S.tags.includes(v))S.tags.push(v);save();render();};
     document.querySelectorAll('[data-rmtag]').forEach(el=>el.onclick=()=>{S.tags.splice(+el.dataset.rmtag,1);save();render();});
+    document.querySelectorAll('[data-rmtagbundle]').forEach(el=>el.onclick=()=>{
+      S.settings.tagBundles.splice(+el.dataset.rmtagbundle,1);audit('Removed tag bundle');save();render();});
+    const atb=$('#addTagBundle');atb&&(atb.onclick=()=>{
+      const code=$('#newTagBundleCode').value.trim().toUpperCase().replace(/[^A-Z0-9]/g,'');
+      const tags=$('#newTagBundleTags').value.split(',').map(x=>x.trim().toUpperCase()).filter(Boolean);
+      if(!code)return toast('Give the bundle a shortcut code');
+      if(!tags.length)return toast('List at least one tag');
+      if(S.settings.tagBundles.some(b=>b.code===code))return toast('That bundle code already exists');
+      S.settings.tagBundles.push({code,tags});
+      audit('Added tag bundle: '+code);save();render();toast('Tag bundle added');});
   }
   if($('#addSvcCat')||document.querySelector('[data-cat]')){
     document.querySelectorAll('[data-cat]').forEach(el=>el.onchange=()=>{const s=S.services[+el.dataset.cat];if(!s)return;
