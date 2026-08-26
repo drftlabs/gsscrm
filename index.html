@@ -952,6 +952,7 @@ function render(){
   const bccIn=$('#bccEmail');bccIn&&(bccIn.onchange=()=>{S.settings.bccEmailInternal=bccIn.value.trim();save();});
   const fromSel=$('#fromAliasSel');fromSel&&(fromSel.onchange=()=>{S.settings.defaultFromAlias=fromSel.value;save();});
   if(fromSel&&emailSendAsOptions===null){loadSendAsOptions().then(()=>render());}
+  const retryAs=$('#retrySendAs');retryAs&&(retryAs.onclick=()=>{emailSendAsOptions=null;emailSendAsError='';render();});
   document.querySelectorAll('[data-etmplabel]').forEach(el=>el.onchange=()=>{S.settings.emailTemplates[+el.dataset.etmplabel].label=el.value.trim()||'Template';save();});
   document.querySelectorAll('[data-etmpsubject]').forEach(el=>el.onchange=()=>{S.settings.emailTemplates[+el.dataset.etmpsubject].subject=el.value;save();});
   document.querySelectorAll('[data-etmpbody]').forEach(el=>el.onchange=()=>{S.settings.emailTemplates[+el.dataset.etmpbody].body=el.value;save();});
@@ -2926,10 +2927,13 @@ function vReports(){
 }
 
 /* ---------- services ---------- */
-let emailSendAsOptions=null,emailLogItems=null,emailLogLoading=false;
+let emailSendAsOptions=null,emailLogItems=null,emailLogLoading=false,emailSendAsError='';
 async function loadSendAsOptions(){
   if(emailSendAsOptions!==null||!S.settings.api)return;
-  try{const r=await api('listSendAs');if(r.ok)emailSendAsOptions=r.aliases||[];}catch(e){emailSendAsOptions=[];}
+  try{const r=await api('listSendAs');
+    if(r.ok){emailSendAsOptions=r.aliases||[];emailSendAsError='';}
+    else{emailSendAsOptions=[];emailSendAsError=r.error||'Could not load send-from addresses.';}
+  }catch(e){emailSendAsOptions=[];emailSendAsError='Could not reach the backend.';}
 }
 async function loadEmailLog(){
   if(!S.settings.api)return;
@@ -2951,7 +2955,9 @@ function vEmail(){
     <label class="f"><span>Send from</span>
       <select id="fromAliasSel"><option value="">Default (the connected Google account)</option>
         ${(emailSendAsOptions||[]).map(a=>`<option value="${esc(a)}"${S.settings.defaultFromAlias===a?' selected':''}>${esc(a)}</option>`).join('')}</select></label>
-    <p class="sub">Other addresses only appear here if they're already set up as a "Send mail as" alias on the connected Google account's own Gmail settings — this can't add a new one, only pick from what's already there.</p>
+    ${emailSendAsError?`<div class="eyebrow" style="color:var(--bad);margin:4px 0 0">${esc(emailSendAsError)}</div>
+      <button class="btn sm ghost" id="retrySendAs" style="margin-top:6px">Retry</button>`
+      :`<p class="sub">Other addresses only appear here if they're already set up as a "Send mail as" alias on the connected Google account's own Gmail settings — this can't add a new one, only pick from what's already there.</p>`}
   </div>
   <div class="card" style="margin-top:12px"><h2>Templates</h2>
     <p class="sub" style="margin-bottom:10px">Placeholders: <span class="mono">{name}</span> <span class="mono">{company}</span> <span class="mono">{invoiceNumber}</span> <span class="mono">{dueDate}</span> <span class="mono">{total}</span> <span class="mono">{paid}</span> <span class="mono">{balance}</span> <span class="mono">{upi_line}</span></p>
@@ -3664,4 +3670,4 @@ function newLead(o){
     createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),lastTouch:''},o);
 }
 </script>
-</body></html>  
+</body></html>
