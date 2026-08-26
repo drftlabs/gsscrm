@@ -2448,11 +2448,13 @@ async function sendInvoiceEmail(invId,kind,silent){
   if(!l||!l.email)return {ok:false,error:'No email address on file for this client.'};
   if(!S.settings.api)return {ok:false,error:'Not connected to a backend — email needs the Google Sheet connection.'};
   const tmpl=(S.settings.emailTemplates||[]).find(t=>t.id===kind)||{subject:'{invoiceNumber}',body:'Please find attached.'};
-  const t=invTotals(inv),paid=paidOn(inv.id),bal=dueOn(inv);
   const subject=fillEmailTemplate(tmpl.subject,inv,l,co),body=fillEmailTemplate(tmpl.body,inv,l,co);
+  // Send the exact same HTML used for Print/PDF — the backend turns this straight into a PDF
+  // rather than rebuilding the layout itself, so the emailed copy can never drift out of sync
+  // with what you see on screen.
+  const html=invoiceHtmlDoc(invId);
   try{
-    const r=await api('sendEmail',{invoice:inv,lead:l,company:co,brand:S.settings.brand,
-      total:t.total,paid,balance:bal,words:words(t.total),subject,body,kind,
+    const r=await api('sendEmail',{html,invoiceNumber:inv.number,to:l.email,subject,body,kind,
       fromAlias:S.settings.defaultFromAlias||undefined});
     if(r.ok){
       if(!silent)toast('Email sent to '+l.email);
@@ -2466,12 +2468,15 @@ async function sendInvoiceEmail(invId,kind,silent){
     return r;
   }catch(e){if(!silent)toast('Could not reach the backend to send email');return {ok:false,error:String(e)};}
 }
-function printInvoice(invId){
+// Builds the exact invoice/quotation HTML — used for both the on-screen print/PDF view and
+// the emailed PDF, so there is only ever one template to maintain. Previously the emailed
+// version was a separate, simplified copy built server-side, which is exactly why it looked
+// different — this makes that structurally impossible from now on.
+function invoiceHtmlDoc(invId){
   const i=S.invoices.find(x=>x.id===invId),l=leadOf(i.leadId)||{},co=coOf(i.companyId),b=S.settings.brand;
   const taxMode=i.taxMode||(i.gstOn===false?'none':(i.igst?'igst':'cgst'));
   const gstRate=taxMode==='none'?0:i.gstRate;
   const t=invTotals(i);
-  const w=window.open('','_blank');if(!w)return toast('Allow pop-ups to print');
   const docLabel=i.type==='tax'?'Tax Invoice':'Proforma Invoice';
   const numLabel=i.type==='tax'?'Invoice No.':'Proforma Invoice No.';
   const rows=i.items.map(x=>`<tr><td>${esc(x.desc||'Business Services')} - ${esc(x.name||'')}</td><td class="c">${esc(x.hsn||'9985')}</td>
@@ -2480,7 +2485,7 @@ function printInvoice(invId){
   const annexHTML=annexItems.length?annexItems.map(x=>`
     <div style="margin-bottom:22px"><h3 style="font-size:14px;margin:0 0 6px;color:${b.brand}">${esc(x.name||x.desc)} — Scope of Work</h3>
     <div style="white-space:pre-wrap;font-size:12px;line-height:1.6">${esc(x.annexure)}</div></div>`).join(''):'';
-  w.document.write(`<!doctype html><meta charset="utf-8"><title>${esc(i.number)}</title><style>
+  return `<!doctype html><meta charset="utf-8"><title>${esc(i.number)}</title><style>
   @page{margin:0}
   body{font-family:Arial,Helvetica,sans-serif;color:#1a1a1a;margin:0;background:#fff;font-size:12.5px}
   .page{max-width:900px;margin:0 auto;padding:28px 30px}
@@ -2550,10 +2555,6 @@ function printInvoice(invId){
     <div class="foot">
       <div class="bank">${co.acName?'Account : '+esc(co.acName)+'<br>':''}${co.acNo?'Bank Account Number : '+esc(co.acNo)+'<br>':''}${co.ifsc?'IFSC Code : '+esc(co.ifsc)+'<br>':''}${co.bank?'Bank: '+esc(co.bank)+'<br>':''}
         <div class="terms"><b>${i.notes?esc(i.notes)+'<br>':''}Other Terms &amp; Conditions</b><br>${(()=>{
-          // Use the invoice's own terms if it has ANY text at all (including a deliberately edited
-          // single line) — only fall back to the company default when terms was never set. This
-          // must not silently swap in the default just because the field is present-but-different
-          // from what a previous invoice had.
           const raw=(typeof i.terms==='string'&&i.terms.trim())?i.terms:(co.terms||'');
           return raw.split('\n').map(x=>x.trim()).filter(Boolean)
             .map(x=>esc(x.replace(/^\d+\)\s*/,''))).map((x,n)=>`${n+1}) ${x}`).join('<br>');
@@ -2563,8 +2564,12 @@ function printInvoice(invId){
     <div class="bottomband"></div>
     ${annexHTML?`<div class="annexpage"><h2 style="color:${b.brand}">Annexure — Scope of Work</h2>${annexHTML}
       <div style="margin-top:20px;font-size:11px;color:#666">${esc(i.number)} · ${esc(co.name)}</div></div>`:''}
-  </div>
-  <script>window.onload=()=>setTimeout(()=>window.print(),400)<\/script>`);
+  </div>`;
+}
+function printInvoice(invId){
+  const i=S.invoices.find(x=>x.id===invId);
+  const w=window.open('','_blank');if(!w)return toast('Allow pop-ups to print');
+  w.document.write(invoiceHtmlDoc(invId)+`<script>window.onload=()=>setTimeout(()=>window.print(),400)<\/script>`);
   w.document.close();
   if(i.status==='draft'){i.status='sent';save();}
 }
@@ -3677,4 +3682,4 @@ function newLead(o){
     createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),lastTouch:''},o);
 }
 </script>
-</body></html>  
+</body></html>
