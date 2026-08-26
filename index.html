@@ -98,6 +98,7 @@ tr.click:hover{background:linear-gradient(90deg,var(--brand-soft),#FAF8FD);curso
 .parsed{margin-top:11px;display:grid;gap:8px;position:relative}
 .pcard{background:#20064C;border:1px solid #3D1178;border-radius:10px;padding:10px;display:flex;gap:10px;align-items:flex-start}
 .pcard.dupe{border-color:#7A5A1A;background:#2A1D08}
+.dupewarn{margin-top:6px;font-size:11.5px;color:#F5D65C;line-height:1.5;background:rgba(240,192,0,.08);border-radius:6px;padding:6px 8px}
 .pcard input[type=checkbox]{width:16px;height:16px;margin-top:3px;accent-color:var(--accent);flex:0 0 auto}
 .pcard b{font-size:14px;color:#fff}
 .pcard .fields{flex:1;min-width:0}
@@ -142,6 +143,7 @@ tr.click:hover{background:linear-gradient(90deg,var(--brand-soft),#FAF8FD);curso
 .next{margin-top:7px;font-size:13px;background:var(--accent-soft);border-left:3px solid var(--accent);padding:6px 9px;border-radius:0 8px 8px 0}
 .qa{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px;align-items:center}
 .qa a,.qa button{display:inline-flex;align-items:center;gap:5px;background:#fff;border:1px solid var(--line);border-radius:99px;padding:6px 12px;font-size:12.5px;font-weight:600;text-decoration:none;color:var(--ink);cursor:pointer;box-shadow:0 1px 2px rgba(20,32,43,.04);transition:transform .12s,box-shadow .12s}
+.qa select.callstatus{margin-left:auto;max-width:150px;border-radius:99px;font-size:11.5px;padding:5px 10px;background:var(--brand-soft);border-color:var(--brand-soft);color:var(--brand);font-weight:600}
 .qa a:hover,.qa button:hover{transform:translateY(-1px);box-shadow:0 3px 8px -3px rgba(20,32,43,.2)}
 .qa a.call{border-color:var(--green);color:#08704A;background:linear-gradient(135deg,#fff,var(--ok-soft))}
 .qa a.wa{border-color:#25D366;color:#0B7A43;background:linear-gradient(135deg,#fff,#DFF7E7)}
@@ -388,7 +390,14 @@ const DEFAULTS=()=>({
     perms:{},targets:{},defaultTarget:0,defaultTerms:'1) Advance 50%\\n2) 25% on first draft, Balance 25% on completion\\n3) Delivery in approx. 10 working days(s)\\n4) 6 Months Support & Revision Period',
     stageOrder:OPEN_STAGES.slice(),customStages:[],
     logTypes:['Call','WhatsApp','Email','Meeting','Note'],logOutcomes:['Pending','Connected','No answer','Call later','Interested','Not interested'],
-    hideMoneyFromStaff:false}
+    hideMoneyFromStaff:false,restrictStaffToOwn:false,
+    msgTemplates:[
+      {id:'intro',label:'Intro',body:'Hello {name}, this is {me} from {company}. Thank you for reaching out{svc_about}. When would be a good time for a short call to understand your requirement?'},
+      {id:'quote',label:'Send quote',body:'Hi {name}, as discussed, here is our proposal{svc_for}{fee_colon}. It covers end-to-end preparation with revisions until you are satisfied. Shall I send the quotation so we can begin?'},
+      {id:'followup',label:'Follow up',body:'Hi {name}, following up on our conversation{svc_about}. Happy to clear any questions — shall we take this forward?'},
+      {id:'payment',label:'Payment nudge',body:'Hi {name}, gentle reminder about the balance of {balance} on your project.{upi_line} Kindly confirm once done. Thank you!'},
+      {id:'docs',label:'Document request',body:'Hi {name}, to move ahead with {svc_plain}, could you please share the following at your earliest: PAN, GST certificate (if applicable), and any supporting documents relevant to the project. Thank you!'}
+    ]}
 });
 let S=DEFAULTS(),route='dash',me=null,syncState='off',lastSync='';
 
@@ -548,6 +557,20 @@ function can(feature){const p=perms();if(p==='ADMIN')return true;if(!p)return ['
 // explicitly flagged for their attention (see leadOf().flagForStaff).
 function isAdmin(){return perms()==='ADMIN';}
 function moneyHiddenFromMe(){return !isAdmin()&&!!S.settings.hideMoneyFromStaff;}
+// When on, non-admins only ever see leads/projects assigned to them (unassigned leads stay
+// visible to everyone so they can still be picked up and claimed). Applied everywhere a lead
+// list is built, not just Leads/Projects, so it can't be bypassed via search, Team, exports,
+// the Customer Database, or opening a lead directly by id.
+function staffLocked(){return !isAdmin()&&!!S.settings.restrictStaffToOwn;}
+function visibleLeads(){
+  if(!staffLocked())return S.leads;
+  return S.leads.filter(l=>!l.assignedTo||l.assignedTo===me.username);
+}
+function canOpenLead(l){
+  if(!l)return false;
+  if(!staffLocked())return true;
+  return !l.assignedTo||l.assignedTo===me.username;
+}
 function canSee(section){const p=perms();if(p==='ADMIN')return true;if(!p)return section!=='settings'?true:true;
   return p.sections?p.sections[section]!==false:true;}
 function audit(what){
@@ -594,6 +617,14 @@ function migrate(){
   S.settings.logTypes=S.settings.logTypes&&S.settings.logTypes.length?S.settings.logTypes:['Call','WhatsApp','Email','Meeting','Note'];
   S.settings.logOutcomes=S.settings.logOutcomes&&S.settings.logOutcomes.length?S.settings.logOutcomes:['Pending','Connected','No answer','Call later','Interested','Not interested'];
   if(S.settings.hideMoneyFromStaff===undefined)S.settings.hideMoneyFromStaff=false;
+  if(S.settings.restrictStaffToOwn===undefined)S.settings.restrictStaffToOwn=false;
+  S.settings.msgTemplates=S.settings.msgTemplates&&S.settings.msgTemplates.length?S.settings.msgTemplates:[
+    {id:'intro',label:'Intro',body:'Hello {name}, this is {me} from {company}. Thank you for reaching out{svc_about}. When would be a good time for a short call to understand your requirement?'},
+    {id:'quote',label:'Send quote',body:'Hi {name}, as discussed, here is our proposal{svc_for}{fee_colon}. It covers end-to-end preparation with revisions until you are satisfied. Shall I send the quotation so we can begin?'},
+    {id:'followup',label:'Follow up',body:'Hi {name}, following up on our conversation{svc_about}. Happy to clear any questions — shall we take this forward?'},
+    {id:'payment',label:'Payment nudge',body:'Hi {name}, gentle reminder about the balance of {balance} on your project.{upi_line} Kindly confirm once done. Thank you!'},
+    {id:'docs',label:'Document request',body:'Hi {name}, to move ahead with {svc_plain}, could you please share the following at your earliest: PAN, GST certificate (if applicable), and any supporting documents relevant to the project. Thank you!'}
+  ];
   S.seq=S.seq||{};
   (S.leads||[]).forEach(l=>{
     l.statusUpdates=l.statusUpdates||[];l.work=l.work||'Not started';l.services=l.services||[];l.docs=l.docs||[];
@@ -800,6 +831,17 @@ function render(){
   const hmt=$('#hideMoneyToggle');hmt&&(hmt.onchange=()=>{S.settings.hideMoneyFromStaff=hmt.checked;
     audit('Turned '+(hmt.checked?'on':'off')+' hide-money-from-staff');save();render();
     toast(hmt.checked?'Staff will no longer see money figures':'Staff can see money figures again');});
+  const rst=$('#restrictStaffToggle');rst&&(rst.onchange=()=>{S.settings.restrictStaffToOwn=rst.checked;
+    audit('Turned '+(rst.checked?'on':'off')+' restrict-staff-to-own-leads');save();render();
+    toast(rst.checked?'Staff now only see their own leads':'Staff can see everyone\u2019s leads again');});
+  document.querySelectorAll('[data-tmplabel]').forEach(el=>el.onchange=()=>{S.settings.msgTemplates[+el.dataset.tmplabel].label=el.value.trim()||'Template';save();});
+  document.querySelectorAll('[data-tmplbody]').forEach(el=>el.onchange=()=>{S.settings.msgTemplates[+el.dataset.tmplbody].body=el.value;save();});
+  document.querySelectorAll('[data-tmplrm]').forEach(el=>el.onclick=()=>{
+    if(!confirm('Remove this template?'))return;
+    S.settings.msgTemplates.splice(+el.dataset.tmplrm,1);save();render();});
+  const at=$('#addTmpl');at&&(at.onclick=()=>{
+    S.settings.msgTemplates.push({id:uid('tmpl'),label:'New template',body:'Hi {name}, '});
+    save();render();});
   custq&&(custq.onblur=()=>render());custq&&(custq.onkeydown=e=>{if(e.key==='Enter')render();});
   document.querySelectorAll('[data-custopen]').forEach(el=>el.onclick=()=>openCustomer(el.dataset.custopen));
   const fc=$('#fcompleted');fc&&(fc.onclick=()=>{projFilt.showCompleted=!projFilt.showCompleted;render();});
@@ -910,14 +952,16 @@ function profitIn(m){return revenueByLeadMonth(m)-totalExpensesIn(m);}
 const EXP_KINDS=['Google Ads','Facebook Ads','Other Ads','Salary','Consumables','Regulatory / Compliance','Rent','Software / Subscriptions','Other'];
 
 /* ---------- dashboard ---------- */
-function rowMini(x,note){
+function rowMini(x,note,followUpActions){
   return `<div class="row" style="align-items:center;border-bottom:1px solid var(--line);padding:7px 0">
     <div style="flex:2;min-width:120px"><b>${esc(x.name)}</b><div class="eyebrow">${esc(leadSvcNames(x)||x.stage)} · ${esc(note)}</div></div>
     <div style="flex:0 0 auto;display:flex;gap:6px">${x.phone?`<a class="btn sm ghost" href="${tel(x.phone)}">${ICON_CALL} Call</a>`:''}
+    ${followUpActions?`<button class="btn sm green" data-fudone="${x.id}" title="Follow-up done">✓ Done</button>
+    <button class="btn sm ghost" data-fusnooze="${x.id}" title="Reschedule">${AICON.clock} Reschedule</button>`:''}
     <button class="btn sm" data-lead="${x.id}">Open</button></div></div>`;
 }
 function vDash(){
-  const L=S.leads,mine=L.filter(x=>x.assignedTo===me.username&&OPEN_STAGES.includes(x.stage));
+  const L=visibleLeads(),mine=L.filter(x=>x.assignedTo===me.username&&OPEN_STAGES.includes(x.stage));
   const openL=L.filter(x=>OPEN_STAGES.includes(x.stage));
   const forecastable=L.filter(l=>['Interested','Quotation Sent'].includes(l.stage));
   const forecast=forecastable.reduce((s,l)=>s+leadFee(l)*(PROB[l.stage]||0),0);
@@ -927,6 +971,28 @@ function vDash(){
   const due=L.filter(x=>x.followUp&&x.followUp<=today()&&OPEN_STAGES.includes(x.stage));
   const acts=L.filter(l=>nextAction(l)&&(filtMine(l))).slice(0,8);
   const tk=S.tickets.filter(t=>!['Resolved','Closed'].includes(t.status));
+
+  // Priority queue: everything that genuinely needs a human decision today, ranked into one
+  // list instead of scattered across three separate cards. Three sources feed it —
+  // overdue follow-ups (a promise that's now late), hot quotations gone quiet (money on the
+  // table, cooling off), and flagged payment defaults (money already owed, going stale).
+  // Each gets a reason and a rough urgency score so the most pressing items sort to the top.
+  const queue=[];
+  L.filter(l=>l.followUp&&l.followUp<=today()&&!DEAD.includes(l.stage)&&filtMine(l)).forEach(l=>{
+    const lateDays=Math.max(0,days(l.followUp));
+    queue.push({l,reason:lateDays>0?lateDays+'d overdue follow-up':'Follow-up due today',urgency:60+Math.min(30,lateDays*3),kind:'followup'});
+  });
+  L.filter(l=>l.stage==='Quotation Sent'&&score(l)>=55&&filtMine(l)).forEach(l=>{
+    const quiet=days((l.lastTouch||l.createdAt).slice(0,10));
+    if(quiet>=5)queue.push({l,reason:'Hot quotation gone quiet '+quiet+'d',urgency:50+Math.min(25,quiet),kind:'quote'});
+  });
+  if(!moneyHiddenFromMe()){
+    L.filter(l=>l.paymentIssue&&filtMine(l)).forEach(l=>{
+      const bal=leadBalance(l.id);
+      queue.push({l,reason:'Payment default'+(bal>0.5?' — '+short(bal):''),urgency:80,kind:'default'});
+    });
+  }
+  const queueTop=queue.sort((a,b)=>b.urgency-a.urgency).slice(0,8);
 
   // interested vs total
   const interestedStages=['Interested','Quotation Sent','Advance Paid','Completed'];
@@ -954,15 +1020,25 @@ function vDash(){
     ['Lost / not interested',L.filter(l=>['Lost','Not Interested'].includes(l.stage)).length]];
 
   const hideMoney=moneyHiddenFromMe();
+  const hideForecast=!isAdmin(); // weighted pipeline / forecast is admin-only regardless of the money toggle
   return `${syncWarningBanner()}${inboxBanner()}<div class="topbar"><div><h1>Hello, ${esc((me.name||'').split(' ')[0])}</h1>
     <p class="sub">${new Date().toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long'})} · ${mine.length} open leads with you</p></div>
     <div class="spacer"></div><button class="btn gold" data-go="leads">+ Add leads</button></div>
+  ${queueTop.length?`<div class="card" style="margin-bottom:12px;border-left:3px solid var(--pink)"><h2 style="display:flex;align-items:center;gap:8px">${AICON.clock} Priority queue — do these first</h2>
+    <p class="sub" style="margin-bottom:8px">Overdue follow-ups, hot quotations gone quiet, and payment defaults — combined and ranked so nothing waits on you unnoticed.</p>
+    ${queueTop.map(({l,reason,kind})=>`<div class="row" style="align-items:center;border-bottom:1px solid var(--line);padding:8px 0">
+      <div style="flex:2;min-width:130px"><b data-lead="${l.id}" style="cursor:pointer">${esc(l.name)}</b>
+        <span class="pill ${kind==='default'?'r':kind==='quote'?'a':'n'}">${esc(reason)}</span>
+        <div class="eyebrow">${esc(leadSvcNames(l)||l.stage)}</div></div>
+      <div style="flex:0 0 auto;display:flex;gap:6px">${l.phone?`<a class="btn sm ghost" href="${tel(l.phone)}">${ICON_CALL} Call</a>`:''}
+      <button class="btn sm" data-lead="${l.id}">Open</button></div></div>`).join('')}
+  </div>`:''}
   ${hideMoney?'':`<div class="card" style="margin-bottom:12px"><h2>This month's target</h2>
     <div class="row" style="align-items:baseline"><div class="num" style="font-size:24px;font-weight:600">${inr(got)}</div>
       <div class="sub" style="text-align:right">${tgt?'of '+inr(tgt)+' · '+Math.round(got/tgt*100)+'%':'no target set'}</div></div>
     <div class="target"><i style="width:${tgt?Math.min(100,got/tgt*100):0}%"></i></div>
     <div class="row"><span class="eyebrow">${tgt&&got<tgt?inr(tgt-got)+' to go · '+(31-new Date().getDate())+' days left':tgt?'Target met':'Set one in Setup'}</span>
-      <span class="eyebrow" style="text-align:right">Weighted pipeline ${short(forecast)}</span></div></div>`}
+      ${hideForecast?'':`<span class="eyebrow" style="text-align:right">Weighted pipeline ${short(forecast)}</span>`}</div></div>`}
   <div class="kpis">
     ${kpi('Assigned to you',mine.filter(x=>OPEN_STAGES.includes(x.stage)).length,'still open','hi')}
     ${kpi('Calls today',callsToday,myCallsToday?myCallsToday+' by you':'across the team')}
@@ -1007,7 +1083,7 @@ const scorePill=l=>{const n=score(l),b=band(n);return `<span class="score ${b[0]
 /* ---------- leads ---------- */
 let filt={q:'',stage:'',svc:'',assignee:'all',sort:'assigned',source:'',tag:'',showDead:false,priority:false,uncalled:false};
 function leadRows(scope){
-  let rows=S.leads.filter(l=>scope==='projects'?isProject(l):!isProject(l));
+  let rows=visibleLeads().filter(l=>scope==='projects'?isProject(l):!isProject(l));
   const q=filt.q.toLowerCase();
   rows=rows.filter(l=>(!q||[l.name,l.phone,l.email,l.customerId,leadSvcNames(l),l.company].join(' ').toLowerCase().includes(q))
     &&(!filt.stage||l.stage===filt.stage)&&(!filt.source||l.source===filt.source)&&(!filt.tag||l.tag===filt.tag)
@@ -1027,12 +1103,14 @@ function leadRows(scope){
 }
 const lastUpd=l=>{const u=(l.statusUpdates||[]);return u.length?u[u.length-1].at:l.createdAt;};
 function filterBar(){
-  const cnt=u=>S.leads.filter(l=>l.assignedTo===u&&!DEAD.includes(l.stage)).length;
+  const cnt=u=>visibleLeads().filter(l=>l.assignedTo===u&&!DEAD.includes(l.stage)).length;
+  const locked=staffLocked();
   return `<div class="row" style="margin:12px 0 10px">
     <input id="fq" placeholder="Search name, phone, customer ID, service…" value="${esc(filt.q)}">
-    <select id="fass"><option value="all"${filt.assignee==='all'?' selected':''}>Everyone (${S.leads.filter(l=>!DEAD.includes(l.stage)).length})</option>
+    ${locked?`<select id="fass"><option value="all" selected>Your leads &amp; unassigned (${visibleLeads().filter(l=>!DEAD.includes(l.stage)).length})</option></select>`
+      :`<select id="fass"><option value="all"${filt.assignee==='all'?' selected':''}>Everyone (${S.leads.filter(l=>!DEAD.includes(l.stage)).length})</option>
       <option value="none"${filt.assignee==='none'?' selected':''}>Unassigned (${S.leads.filter(l=>!l.assignedTo&&!DEAD.includes(l.stage)).length})</option>
-      ${team().map(t=>`<option value="${esc(t.username)}"${filt.assignee===t.username?' selected':''}>${esc(t.name)} (${cnt(t.username)})${t.username===me.username?' ★':''}</option>`).join('')}</select>
+      ${team().map(t=>`<option value="${esc(t.username)}"${filt.assignee===t.username?' selected':''}>${esc(t.name)} (${cnt(t.username)})${t.username===me.username?' ★':''}</option>`).join('')}</select>`}
     <select id="ftag"><option value="">All tags</option>${S.tags.map(t=>`<option${filt.tag===t?' selected':''}>${esc(t)}</option>`).join('')}</select>
     <select id="fstage"><option value="">All stages</option>${STAGES.concat(S.settings.customStages||[]).map(s=>`<option${filt.stage===s?' selected':''}>${s}</option>`).join('')}</select>
     <select id="fsvc"><option value="">All services</option>${S.services.map(s=>`<option value="${s.code}"${filt.svc===s.code?' selected':''}>${esc(s.name)}</option>`).join('')}</select>
@@ -1070,6 +1148,10 @@ function leadCard(l,sno){
       <button class="cross ${l.stage==='Not Interested'?'on':''}" data-cross="${l.id}" title="Not interested">✕</button>`}
       <select data-status="${l.id}" class="sm"><option value="">Status…</option>${STATUS_ACTIONS.map(s=>`<option${l.stage===s?' selected':''}>${s}</option>`).join('')}</select>
       <button class="btn sm ghost" data-lead="${l.id}">Open</button>
+      <select data-callstatus="${l.id}" class="sm callstatus" title="Last call status">
+        <option value="">Call status…</option>
+        ${(S.settings.logOutcomes||[]).map(o=>`<option${lastCallOutcome(l)===o?' selected':''}>${esc(o)}</option>`).join('')}
+      </select>
     </div>
     <details class="more">
       <summary class="eyebrow">More — assign, update, history${(l.statusUpdates||[]).length?' ('+l.statusUpdates.length+')':''}</summary>
@@ -1243,14 +1325,16 @@ function drawParsed(){
   const box=$('#parsed');if(!box)return;
   if(!parsed.length)return box.innerHTML='';
   box.innerHTML=parsed.map((p,i)=>{const svc=splitFee(p.codes,p.fee,p.rates);
+    const dupeLead=p.dupe?leadOf(p.dupe):null;
     return `<div class="pcard ${p.dupe?'dupe':''}"><input type="checkbox" data-p="${i}" ${p.dupe?'':'checked'}>
     <div class="fields"><b>${esc(p.tag||'GSS')} · ${esc(p.name)}</b><div class="chips">
       <span class="chip${p.phone?'':' miss'}">${p.phone?esc(p.phone):'no phone'}</span>
       ${svc.length?svc.map(s=>`<span class="chip gold">${esc(s.name)}${s.rate?' · '+inr(s.rate):''}</span>`).join(''):'<span class="chip miss">no service code</span>'}
       ${p.fee?`<span class="chip">total ${inr(p.fee)}</span>`:''}
       ${p.stage&&p.stage!=='New'?`<span class="chip">${esc(p.stage)}</span>`:''}
-      ${p.dupe?'<span class="chip" style="color:#F5D65C">already in list</span>':''}
-    </div></div></div>`;}).join('')+`<button class="btn gold wide" id="commit">Add ${parsed.filter(p=>!p.dupe).length||parsed.length} leads</button>`;
+    </div>
+    ${dupeLead?`<div class="dupewarn">⚠ Already a customer — ${esc(dupeLead.customerId||'')} · ${esc(dupeLead.name)}${dupeLead.company?' ('+esc(dupeLead.company)+')':''} · ${esc(dupeLead.stage)}${leadPaid(dupeLead.id)>0?' · has paid before':''}. Unticked by default — tick to add anyway as a new enquiry linked to the same customer.</div>`:''}
+    </div></div>`;}).join('')+`<button class="btn gold wide" id="commit">Add ${parsed.filter(p=>!p.dupe).length||parsed.length} leads</button>`;
 }
 
 /* ---------- status updates & assignment ---------- */
@@ -1265,6 +1349,22 @@ function logQuickCall(id,type){
   l.lastTouch=new Date().toISOString();
   save();
   toast(type+' logged');
+}
+// The last call's outcome — shown in the dropdown at the right edge of each lead card so it
+// can be updated without opening the lead. If there's no call logged yet, changing this
+// dropdown creates one (so picking an outcome always works, whether or not Call was tapped first).
+function lastCallOutcome(l){
+  const calls=(l.logs||[]).filter(x=>x.type==='Call');
+  return calls.length?calls[calls.length-1].outcome:'';
+}
+function setLastCallOutcome(id,outcome){
+  const l=leadOf(id);if(!l)return;
+  l.logs=l.logs||[];
+  const calls=l.logs.filter(x=>x.type==='Call');
+  if(calls.length){calls[calls.length-1].outcome=outcome;}
+  else{l.logs.push({at:new Date().toISOString(),by:me.username,type:'Call',outcome,text:''});}
+  l.lastTouch=new Date().toISOString();
+  save();
 }
 function addUpdate(id,text,silent){
   const l=leadOf(id);if(!l||!text.trim())return;
@@ -1320,8 +1420,27 @@ function timeline(l){
   S.tickets.filter(x=>x.leadId===l.id).forEach(x=>t.push({at:x.createdAt,k:'tk',m:'Ticket · '+x.status,p:x.title}));
   return t.sort((a,b)=>b.at<a.at?-1:1);
 }
+// Turns a saved template's {placeholders} into real text for a specific lead. Placeholders
+// that don't apply (no service, no fee, no UPI) collapse to nothing rather than leaving an
+// awkward gap — so "about {svc_about}" cleanly disappears instead of printing "about ."
+function fillTemplate(tmplId,l){
+  const t=(S.settings.msgTemplates||[]).find(x=>x.id===tmplId);
+  if(!t)return '';
+  const co=coOf(l.companyId),sv=leadSvcNames(l),fee=leadFee(l),bal=leadBalance(l.id);
+  const vars={
+    name:l.name,me:me.name,company:co.name||'Get Set Startup',
+    svc_plain:sv||'your project',
+    svc_about:sv?' about the '+sv:'',
+    svc_for:sv?' for '+sv:'',
+    fee_colon:fee?': '+inr(fee)+' + GST':'',
+    balance:inr(bal),
+    upi_line:co.upi?' UPI: '+co.upi+'.':''
+  };
+  return t.body.replace(/\{(\w+)\}/g,(m,k)=>vars[k]!==undefined?vars[k]:'');
+}
 function openLead(id){
   const l=leadOf(id);if(!l)return;
+  if(!canOpenLead(l))return toast('This lead is assigned to someone else');
   const bal=leadBalance(id),ph=cleanPh(l.phone).slice(-10),n=score(l),b=band(n);
   layer(`<div class="dhead"><div style="flex:1"><div class="eyebrow">${esc(l.tag||'GSS')} · ${esc(l.source||'lead')} · added ${fmtD(l.createdAt.slice(0,10))}${l.owner?' by '+esc(nameOf(l.owner)):''}</div>
     <input id="editName" value="${esc(l.name)}" style="font-size:19px;font-weight:700;border:1px solid transparent;background:transparent;padding:2px 0;margin:2px 0 0" onfocus="this.style.borderColor='var(--line)';this.style.background='#fff'">
@@ -1340,8 +1459,7 @@ function openLead(id){
       ${isAdmin()&&S.settings.hideMoneyFromStaff?`<button data-flagstaff="${l.id}" style="${l.flagForStaff?'background:var(--accent);color:#3A2A00;border-color:var(--accent)':''}"><span class="ic">★</span>${l.flagForStaff?'Flagged for staff':'Flag for staff'}</button>`:''}
     </div>
     ${ph?`<div class="card"><div class="eyebrow">Ready-made messages</div><div class="row" style="margin-top:8px">
-      <button class="btn sm ghost" data-tmpl="intro">Intro</button><button class="btn sm ghost" data-tmpl="quote">Send quote</button>
-      <button class="btn sm ghost" data-tmpl="followup">Follow up</button><button class="btn sm ghost" data-tmpl="payment">Payment nudge</button></div></div>`:''}
+      ${(S.settings.msgTemplates||[]).map(t=>`<button class="btn sm ghost" data-tmpl="${esc(t.id)}">${esc(t.label)}</button>`).join('')}</div></div>`:''}
     <div class="card"><h2>Ownership &amp; stage</h2>
       <div class="row">
         <label class="f"><span>Assigned to</span><select id="dass">${'<option value="">— nobody —</option>'+team().map(t=>`<option value="${esc(t.username)}"${l.assignedTo===t.username?' selected':''}>${esc(t.name)}</option>`).join('')}</select></label>
@@ -1404,11 +1522,9 @@ function openLead(id){
     d.logs.push({at:new Date().toISOString(),by:me.username,type:$('#logType').value,outcome:$('#logOut').value,text:$('#logText').value.trim()});
     d.lastTouch=new Date().toISOString();save();openLead(id);toast('Logged');};
   document.querySelectorAll('[data-tmpl]').forEach(b=>b.onclick=()=>{
-    const d=leadOf(id),co=coOf(d.companyId),sv=leadSvcNames(d),f=leadFee(d)?inr(leadFee(d))+' + GST':'';
-    const t={intro:`Hello ${d.name}, this is ${me.name} from Get Set Startup. Thank you for reaching out${sv?' about the '+sv:''}. When would be a good time for a short call to understand your requirement?`,
-      quote:`Hi ${d.name}, as discussed, here is our proposal${sv?' for '+sv:''}${f?': '+f:''}. It covers end-to-end preparation with revisions until you are satisfied. Shall I send the quotation so we can begin?`,
-      followup:`Hi ${d.name}, following up on our conversation${sv?' about '+sv:''}. Happy to clear any questions — shall we take this forward?`,
-      payment:`Hi ${d.name}, gentle reminder about the balance of ${inr(leadBalance(id))} on your project.${co.upi?' UPI: '+co.upi+'.':''} Kindly confirm once done. Thank you!`}[b.dataset.tmpl];
+    const d=leadOf(id);
+    const t=fillTemplate(b.dataset.tmpl,d);
+    if(!t)return;
     window.open(wa(d.phone)+'?text='+encodeURIComponent(t),'_blank');copy(t,'Message copied');
     d.logs=d.logs||[];d.logs.push({at:new Date().toISOString(),by:me.username,type:'WhatsApp',outcome:'—',text:t});d.lastTouch=new Date().toISOString();save();});
   document.querySelectorAll('[data-newinv]').forEach(b=>b.onclick=()=>editInvoice(null,{leadId:id,type:b.dataset.newinv}));
@@ -1565,6 +1681,7 @@ let invFilt={kind:'',stage:''};
 let invFilt2={q:'',from:'',to:'',assignee:''};
 function filteredInvoices(){
   let rows=S.invoices.slice().sort((a,b)=>b.date<a.date?-1:1);
+  if(staffLocked()){const okIds=new Set(visibleLeads().map(l=>l.id));rows=rows.filter(i=>!i.leadId||okIds.has(i.leadId));}
   if(invFilt.kind)rows=rows.filter(i=>i.type===invFilt.kind);
   if(invFilt2.q){const q=invFilt2.q.toLowerCase();
     rows=rows.filter(i=>{const l=leadOf(i.leadId);
@@ -1625,7 +1742,11 @@ function vInvoices(){
       </tr>`;}).join(''):`<tr><td colspan="13"><div class="empty"><b>No documents yet</b>Open a lead and raise a quotation.</div></td></tr>`}
     </tbody></table></div></div>`;
 }
-function nextNumber(co,type){const d=new Date(),y=d.getFullYear(),s=d.getMonth()>=3?y:y-1;
+function nextNumber(co,type,forDate){
+  // Uses the invoice's own date (not "today") to pick the financial-year series, so a
+  // backdated or forward-dated invoice gets a number consistent with the date printed on
+  // it, not the date it happened to be created in the CRM.
+  const d=forDate?new Date(forDate+'T00:00:00'):new Date(),y=d.getFullYear(),s=d.getMonth()>=3?y:y-1;
   const key=(type==='tax'?co.prefix||'INV':co.pfPrefix||'PI')+'/'+String(s).slice(2)+'-'+String(s+1).slice(2);
   const n=(S.seq[key]||0)+1;return {number:key+'/'+String(n).padStart(3,'0'),key,n};}
 function nextQuotationId(){
@@ -1727,7 +1848,7 @@ function editInvoice(id,seed){
     const ec=document.querySelector('[data-editco]');ec&&(ec.onclick=e=>{e.preventDefault();pull();editCompany(co.id,()=>draw2());});
     const commit=()=>{pull();
       const isFirstSave=inv.number.startsWith('(');
-      if(isFirstSave){const co2=coOf(inv.companyId),nn=nextNumber(co2,inv.type);inv.number=nn.number;S.seq[nn.key]=nn.n;}
+      if(isFirstSave){const co2=coOf(inv.companyId),nn=nextNumber(co2,inv.type,inv.date);inv.number=nn.number;S.seq[nn.key]=nn.n;}
       if(!S.invoices.find(i=>i.id===inv.id)){S.invoices.push(inv);audit('Raised '+inv.number);}
       const l2=leadOf(inv.leadId);
       if(l2&&isFirstSave){
@@ -1782,7 +1903,7 @@ function quickPayForLead(leadId){
     // find or create a lightweight invoice to attach the payment to
     let inv=S.invoices.find(i=>i.leadId===leadId&&i.type==='tax'&&i.status!=='cancelled');
     if(!inv){
-      const co=coOf(l.companyId),nn=nextNumber(co,'tax');
+      const co=coOf(l.companyId),nn=nextNumber(co,'tax',date);
       const items=(l.services||[]).length?l.services.map(s=>({desc:s.name,hsn:'998311',qty:1,rate:Number(s.rate)||0}))
         :[{desc:'Consulting services',hsn:'998311',qty:1,rate:Number(l.fees)||0}];
       inv={id:uid('inv'),type:'tax',companyId:co.id,leadId,number:nn.number,date,
@@ -1856,12 +1977,13 @@ function vMoneyRestricted(){
 }
 function vMoney(){
   if(moneyHiddenFromMe())return vMoneyRestricted();
-  const open=openInvoices().filter(i=>i.type==='tax').sort((a,b)=>(a.dueDate||a.date)<(b.dueDate||b.date)?-1:1);
+  const okIds=staffLocked()?new Set(visibleLeads().map(l=>l.id)):null;
+  const open=openInvoices().filter(i=>i.type==='tax'&&(!okIds||!i.leadId||okIds.has(i.leadId))).sort((a,b)=>(a.dueDate||a.date)<(b.dueDate||b.date)?-1:1);
   const buckets=[['Not due yet',i=>days(i.dueDate||i.date)<=0],['1–30 days',i=>{const d=days(i.dueDate||i.date);return d>0&&d<=30;}],
     ['31–60 days',i=>{const d=days(i.dueDate||i.date);return d>30&&d<=60;}],['60+ days',i=>days(i.dueDate||i.date)>60]];
-  const pays=S.payments.slice().sort((a,b)=>b.date<a.date?-1:1);
-  const flagged=S.leads.filter(l=>l.paymentIssue);
-  const byPerson=team().map(t=>{const inv=open.filter(i=>{const l=leadOf(i.leadId);return l&&l.assignedTo===t.username;});
+  const pays=S.payments.filter(p=>!okIds||!p.leadId||okIds.has(p.leadId)).slice().sort((a,b)=>b.date<a.date?-1:1);
+  const flagged=visibleLeads().filter(l=>l.paymentIssue);
+  const byPerson=(staffLocked()?team().filter(t=>t.username===me.username):team()).map(t=>{const inv=open.filter(i=>{const l=leadOf(i.leadId);return l&&l.assignedTo===t.username;});
     return [t.name+' ('+inv.length+')',Math.round(inv.reduce((s,i)=>s+dueOn(i),0))];});
   const unass=open.filter(i=>{const l=leadOf(i.leadId);return !l||!l.assignedTo;});
   if(unass.length)byPerson.push(['Unassigned ('+unass.length+')',Math.round(unass.reduce((s,i)=>s+dueOn(i),0))]);
@@ -2165,7 +2287,7 @@ let teamFilt={person:''};
 let custFilt={q:''};
 function vCustomers(){
   const byId={};
-  S.leads.forEach(l=>{const cid=l.customerId||l.id;(byId[cid]=byId[cid]||[]).push(l);});
+  visibleLeads().forEach(l=>{const cid=l.customerId||l.id;(byId[cid]=byId[cid]||[]).push(l);});
   let rows=Object.entries(byId).map(([cid,leads])=>{
     const primary=leads.slice().sort((a,b)=>a.createdAt.localeCompare(b.createdAt))[0];
     const totalPaid=leads.reduce((s,l)=>s+leadPaid(l.id),0);
@@ -2196,7 +2318,7 @@ function vCustomers(){
     </tbody></table></div></div>`;
 }
 function openCustomer(cid){
-  const leads=S.leads.filter(l=>(l.customerId||l.id)===cid).sort((a,b)=>b.createdAt.localeCompare(a.createdAt));
+  const leads=visibleLeads().filter(l=>(l.customerId||l.id)===cid).sort((a,b)=>b.createdAt.localeCompare(a.createdAt));
   if(!leads.length)return;
   const primary=leads[0];
   layer(`<div class="dhead"><div style="flex:1"><div class="eyebrow">Customer ID ${esc(cid)}</div>
@@ -2220,7 +2342,8 @@ function openCustomer(cid){
   document.querySelectorAll('[data-lead]').forEach(el=>el.onclick=e=>{e.stopPropagation();openLead(el.dataset.lead);});
 }
 function vTeam(){
-  const L=S.leads,people=team();
+  const L=visibleLeads();
+  const people=staffLocked()?team().filter(t=>t.username===me.username):team();
   const per=people.map(t=>{
     const own=L.filter(l=>l.assignedTo===t.username);
     const openL=own.filter(l=>OPEN_STAGES.includes(l.stage));
@@ -2241,13 +2364,13 @@ function vTeam(){
   const myFollowUpsUpcoming=L.filter(l=>l.assignedTo===me.username&&l.followUp&&l.followUp>today()&&l.followUp<=new Date(Date.now()+7*864e5).toISOString().slice(0,10)&&!DEAD.includes(l.stage))
     .sort((a,b)=>a.followUp.localeCompare(b.followUp));
   return `<div class="topbar"><div><h1>Team Work &amp; Follow-ups</h1><p class="sub">Everyone's leads, projects and collections in one place.</p></div><div class="spacer"></div>
-    <select id="teamPerson"><option value="">Everyone</option>${people.map(t=>`<option value="${esc(t.username)}"${teamFilt.person===t.username?' selected':''}>${esc(t.name)}</option>`).join('')}</select></div>
+    ${staffLocked()?'':`<select id="teamPerson"><option value="">Everyone</option>${people.map(t=>`<option value="${esc(t.username)}"${teamFilt.person===t.username?' selected':''}>${esc(t.name)}</option>`).join('')}</select>`}</div>
   <div class="card" style="margin-bottom:14px;border-left:3px solid var(--accent)"><h2 style="display:flex;align-items:center;gap:8px">${AICON.clock} Your follow-ups</h2>
     ${myFollowUpsOverdue.length?`<div class="eyebrow" style="color:var(--bad);margin-bottom:4px">${myFollowUpsOverdue.length} overdue</div>
-      ${myFollowUpsOverdue.map(x=>rowMini(x,'was due '+fmtD(x.followUp))).join('')}`:''}
-    ${myFollowUpsToday.length?`<div class="eyebrow" style="margin:8px 0 4px">Today</div>${myFollowUpsToday.map(x=>rowMini(x,'due today')).join('')}`
+      ${myFollowUpsOverdue.map(x=>rowMini(x,'was due '+fmtD(x.followUp),true)).join('')}`:''}
+    ${myFollowUpsToday.length?`<div class="eyebrow" style="margin:8px 0 4px">Today</div>${myFollowUpsToday.map(x=>rowMini(x,'due today',true)).join('')}`
       :myFollowUpsOverdue.length?'':'<div class="empty">Nothing due today.</div>'}
-    ${myFollowUpsUpcoming.length?`<div class="eyebrow" style="margin:8px 0 4px">Next 7 days</div>${myFollowUpsUpcoming.map(x=>rowMini(x,fmtD(x.followUp))).join('')}`:''}
+    ${myFollowUpsUpcoming.length?`<div class="eyebrow" style="margin:8px 0 4px">Next 7 days</div>${myFollowUpsUpcoming.map(x=>rowMini(x,fmtD(x.followUp),true)).join('')}`:''}
   </div>
   ${noticesCard()}
   <div class="kpis">
@@ -2283,7 +2406,7 @@ function vTeam(){
   `;
 }
 function vReports(){
-  const L=S.leads;
+  const L=staffLocked()?visibleLeads():S.leads;
   const mo=[];for(let k=5;k>=0;k--){const d=new Date();d.setMonth(d.getMonth()-k);mo.push(d.toISOString().slice(0,7));}
   const leadsBy=mo.map(m=>L.filter(l=>l.createdAt.slice(0,7)===m).length);
   const collBy=mo.map(m=>collectedIn(m));
@@ -2309,7 +2432,25 @@ function vReports(){
   const last3=mo.slice(-3).map(m=>recognisedIn(m)),run=last3.reduce((a,b)=>a+b,0)/3;
   const avgRate={};L.forEach(l=>(l.services||[]).forEach(s=>{if(s.rate)(avgRate[s.name]=avgRate[s.name]||[]).push(s.rate);}));
   const tgt=targetOf(month()),got=recognisedIn(month()),cashIn=collectedIn(month()),dleft=Math.max(1,31-new Date().getDate());
+  // This calendar month only, for the "how did this month actually go" breakdown —
+  // separate from the all-time KPIs above, which answer a different question.
+  const thisMo=month();
+  const newThisMo=L.filter(l=>l.createdAt.slice(0,7)===thisMo);
+  const convertedThisMo=newThisMo.filter(l=>leadPaid(l.id)>0).length;
+  const quotedThisMo=S.invoices.filter(i=>i.type==='proforma'&&i.date.slice(0,7)===thisMo&&(!staffLocked()||visibleLeads().some(l=>l.id===i.leadId))).length;
+  const failedThisMo=newThisMo.filter(l=>['Lost','Not Interested'].includes(l.stage)).length;
+  const fakeThisMo=newThisMo.filter(l=>l.stage==='Fake').length;
+  const failedIncFakeThisMo=failedThisMo+fakeThisMo;
   return `<div class="topbar"><div><h1>Analytics</h1><p class="sub">Everything on file, six months of trend.</p></div></div>
+  <div class="card" style="margin-bottom:14px"><h2>This month — ${new Date(thisMo+'-01').toLocaleDateString('en-IN',{month:'long',year:'numeric'})}</h2>
+    <div class="kpis">
+      ${kpi('New leads',newThisMo.length,'came in this month')}
+      ${kpi('Converted',convertedThisMo,newThisMo.length?Math.round(convertedThisMo/newThisMo.length*100)+'% of new leads':'','hi')}
+      ${kpi('Quotations sent',quotedThisMo,'raised this month')}
+      ${kpi('Failed / not interested',failedThisMo,newThisMo.length?Math.round(failedThisMo/newThisMo.length*100)+'% of new leads':'',failedThisMo?'warn':'')}
+      ${kpi('Fake',fakeThisMo,newThisMo.length?Math.round(fakeThisMo/newThisMo.length*100)+'% of new leads':'',fakeThisMo?'bad':'')}
+      ${kpi('Failed incl. fake',failedIncFakeThisMo,newThisMo.length?Math.round(failedIncFakeThisMo/newThisMo.length*100)+'% of new leads combined':'',failedIncFakeThisMo?'bad':'')}
+    </div></div>
   <div class="kpis">
     ${kpi('Converted',paidL.length,(L.length?Math.round(paidL.length/L.length*100):0)+'% of all leads','hi')}
     ${kpi('Quotations sent',quoted,'reached proposal stage')}
@@ -2318,7 +2459,7 @@ function vReports(){
     ${kpi('Average order value',short(aov),'per paying client')}
     ${kpi('Sales velocity',velocity+'d','enquiry to first payment')}
   </div>
-  <div class="card" style="margin-top:14px"><h2>Forecast</h2>
+  ${isAdmin()?`<div class="card" style="margin-top:14px"><h2>Forecast</h2>
     <div class="row">
       <div><div class="eyebrow">Weighted pipeline</div><div class="num" style="font-size:20px;font-weight:600">${short(weighted)}</div>
         <div class="sub">${forecastable.length} interested + quoted leads, weighted by stage</div></div>
@@ -2329,8 +2470,8 @@ function vReports(){
       <div><div class="eyebrow">Needed per day</div><div class="num" style="font-size:20px;font-weight:600">${tgt&&got<tgt?short((tgt-got)/dleft):'—'}</div>
         <div class="sub">${tgt?dleft+' days left in month':'set a target in Setup'}</div></div></div>
     <div class="target"><i style="width:${tgt?Math.min(100,got/tgt*100):0}%"></i></div>
-    <div class="sub">${tgt?inr(got)+' of '+inr(tgt)+' recognised this month (full value of projects started) · '+inr(cashIn)+' actually collected':'No target set'}</div></div>
-  <div class="card" style="margin-top:12px"><h2>Most likely to convert</h2>
+    <div class="sub">${tgt?inr(got)+' of '+inr(tgt)+' recognised this month (full value of projects started) · '+inr(cashIn)+' actually collected':'No target set'}</div></div>`:''}
+  ${isAdmin()?`<div class="card" style="margin-top:12px"><h2>Most likely to convert</h2>
     <p class="sub" style="margin-bottom:8px">Interested and quoted leads only, ranked by hotness and value — these are the ones worth chasing first.</p>
     ${forecastable.length?(()=>{const ranked=forecastable.map(l=>({l,s:score(l),f:leadFee(l)})).sort((a,b)=>(b.s*b.f)-(a.s*a.f)).slice(0,8);
       return ranked.map(({l,s,f})=>`<div class="row" style="align-items:center;border-bottom:1px solid var(--line);padding:8px 0">
@@ -2339,6 +2480,37 @@ function vReports(){
         <div style="text-align:right;flex:0 0 auto"><div class="num" style="font-weight:600">${f?inr(f):'—'}</div>
         <div class="eyebrow">${short(f*(PROB[l.stage]||0))} weighted</div></div></div>`).join('');})()
       :'<div class="empty">No interested or quoted leads right now.</div>'}
+  </div>`:''}
+  <div class="card" style="margin-top:12px"><h2>Quotation → Invoice → Paid funnel</h2>
+    <p class="sub" style="margin-bottom:8px">Where quotations actually go, and how long each step takes — tells you if quoting is too slow, too high, or landing fine.</p>
+    ${(()=>{
+      const relevantLeads=L.filter(l=>(S.invoices.some(i=>i.leadId===l.id&&i.type==='proforma')));
+      const quotedLeads=relevantLeads.length;
+      const invoicedLeads=relevantLeads.filter(l=>S.invoices.some(i=>i.leadId===l.id&&i.type==='tax')).length;
+      const paidLeads=relevantLeads.filter(l=>leadPaid(l.id)>0).length;
+      const q2i=[];relevantLeads.forEach(l=>{
+        const q=S.invoices.filter(i=>i.leadId===l.id&&i.type==='proforma').sort((a,b)=>a.date<b.date?-1:1)[0];
+        const inv=S.invoices.filter(i=>i.leadId===l.id&&i.type==='tax').sort((a,b)=>a.date<b.date?-1:1)[0];
+        if(q&&inv)q2i.push(days(q.date,inv.date));
+      });
+      const i2p=[];relevantLeads.forEach(l=>{
+        const inv=S.invoices.filter(i=>i.leadId===l.id&&i.type==='tax').sort((a,b)=>a.date<b.date?-1:1)[0];
+        const pay=S.payments.filter(p=>p.leadId===l.id).sort((a,b)=>a.date<b.date?-1:1)[0];
+        if(inv&&pay)i2p.push(days(inv.date,pay.date));
+      });
+      const avg=arr=>arr.length?Math.round(arr.reduce((a,b)=>a+b,0)/arr.length):null;
+      return `<div class="funnel">
+        <div class="f"><div>Quoted</div><i style="width:100%">${quotedLeads}</i></div>
+        <div class="f"><div>Invoiced</div><i style="width:${quotedLeads?Math.max(8,invoicedLeads/quotedLeads*100):8}%">${invoicedLeads}</i></div>
+        <div class="f"><div>Paid</div><i style="width:${quotedLeads?Math.max(8,paidLeads/quotedLeads*100):8}%">${paidLeads}</i></div>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <div style="flex:1"><span class="eyebrow">Quote → Invoice rate</span><div class="num" style="font-size:18px;font-weight:600">${quotedLeads?Math.round(invoicedLeads/quotedLeads*100):0}%</div></div>
+        <div style="flex:1"><span class="eyebrow">Invoice → Paid rate</span><div class="num" style="font-size:18px;font-weight:600">${invoicedLeads?Math.round(paidLeads/invoicedLeads*100):0}%</div></div>
+        <div style="flex:1"><span class="eyebrow">Avg. quote → invoice</span><div class="num" style="font-size:18px;font-weight:600">${avg(q2i)!=null?avg(q2i)+'d':'—'}</div></div>
+        <div style="flex:1"><span class="eyebrow">Avg. invoice → paid</span><div class="num" style="font-size:18px;font-weight:600">${avg(i2p)!=null?avg(i2p)+'d':'—'}</div></div>
+      </div>`;
+    })()}
   </div>
   <div class="card" style="margin-top:12px"><h2>Pipeline board</h2><div class="kan">
     ${(S.settings.stageOrder||OPEN_STAGES).concat(['Advance Paid']).map(st=>{const items=L.filter(l=>l.stage===st);
@@ -2450,7 +2622,19 @@ function vSettings(){
   ${can('manageUsers')?`<div class="card" style="margin-top:12px"><h2>Money visibility for staff</h2>
     <p class="sub" style="margin-bottom:10px">When turned on, staff logins lose the dashboard target, revenue figures, and the full Payments page entirely. They'll only see individual leads you've flagged (from the lead's page, "Flag for staff") — useful for having them chase a specific pending payment without seeing the business's overall numbers.</p>
     <label class="checkline"><input type="checkbox" id="hideMoneyToggle" ${S.settings.hideMoneyFromStaff?'checked':''}> Hide money figures from staff — they only see leads I flag</label>
+  </div>
+  <div class="card" style="margin-top:12px"><h2>Lead visibility for staff</h2>
+    <p class="sub" style="margin-bottom:10px">When turned on, staff only see leads, projects, invoices and payments assigned to them — not the whole team's. Unassigned leads stay visible to everyone so they can still be picked up. Admins always see everything regardless of this setting.</p>
+    <label class="checkline"><input type="checkbox" id="restrictStaffToggle" ${S.settings.restrictStaffToOwn?'checked':''}> Staff can only see their own leads &amp; projects</label>
   </div>`:''}
+  <div class="card" style="margin-top:12px"><h2>Message templates</h2>
+    <p class="sub" style="margin-bottom:10px">These show as quick-send buttons on every lead. Use <span class="mono">{name}</span>, <span class="mono">{me}</span>, <span class="mono">{company}</span>, <span class="mono">{svc_plain}</span>, <span class="mono">{svc_about}</span>, <span class="mono">{svc_for}</span>, <span class="mono">{fee_colon}</span>, <span class="mono">{balance}</span>, <span class="mono">{upi_line}</span> — each fills in automatically and disappears cleanly if it doesn't apply.</p>
+    ${(S.settings.msgTemplates||[]).map((t,ix)=>`<div class="card" style="margin-bottom:8px;background:var(--bg)">
+      <div class="row"><input data-tmplabel="${ix}" value="${esc(t.label)}" placeholder="Button label" style="flex:1">
+        <button class="btn sm ghost" data-tmplrm="${ix}" style="flex:0 0 auto">Remove</button></div>
+      <textarea data-tmplbody="${ix}" rows="2" style="margin-top:6px;font-size:13px">${esc(t.body)}</textarea></div>`).join('')}
+    <button class="btn ghost wide" id="addTmpl">+ Add template</button>
+  </div>
   <div class="card" style="margin-top:12px"><h2>This month's target</h2>
     <div class="row"><label class="f"><span>Target for ${m}</span><input type="number" id="tgtMonth" value="${S.settings.targets[m]||''}" placeholder="e.g. 300000"></label>
     <label class="f"><span>Default monthly target</span><input type="number" data-set="defaultTarget" value="${S.settings.defaultTarget||''}"></label></div>
@@ -2825,6 +3009,20 @@ function wire(){
     const l=leadOf(el.dataset.restore);l.stage='New';
     addUpdate(l.id,'Brought back into the active pipeline',true);audit('Restored '+l.name+' from dropped');save();render();toast('Lead restored');});
   document.querySelectorAll('[data-logcall]').forEach(el=>el.onclick=e=>{e.stopPropagation();logQuickCall(el.dataset.logcall,'Call');});
+  document.querySelectorAll('[data-callstatus]').forEach(el=>el.onchange=e=>{e.stopPropagation();
+    if(!el.value)return;setLastCallOutcome(el.dataset.callstatus,el.value);toast('Call status: '+el.value);});
+  document.querySelectorAll('[data-fudone]').forEach(el=>el.onclick=e=>{e.stopPropagation();
+    const l=leadOf(el.dataset.fudone);if(!l)return;
+    addUpdate(l.id,'Follow-up completed',true);
+    audit('Marked follow-up done for '+l.name);
+    l.followUp='';save();render();toast('Follow-up marked done');});
+  document.querySelectorAll('[data-fusnooze]').forEach(el=>el.onclick=e=>{e.stopPropagation();
+    const l=leadOf(el.dataset.fusnooze);if(!l)return;
+    const d=prompt('Reschedule follow-up to which date? (YYYY-MM-DD)',new Date(Date.now()+2*864e5).toISOString().slice(0,10));
+    if(!d)return;
+    l.followUp=d;addUpdate(l.id,'Follow-up rescheduled to '+fmtD(d),true);
+    audit('Rescheduled follow-up for '+l.name+' to '+fmtD(d));
+    save();render();toast('Rescheduled to '+fmtD(d));});
   document.querySelectorAll('[data-logwa]').forEach(el=>el.onclick=e=>{e.stopPropagation();logQuickCall(el.dataset.logwa,'WhatsApp');});
   document.querySelectorAll('[data-pri]').forEach(el=>el.onchange=e=>{e.stopPropagation();
     const l=leadOf(el.dataset.pri);l.priority=el.checked;save();
@@ -2869,6 +3067,9 @@ function wire(){
         S.leads.push(l);});
       audit('Added '+keep.length+' leads');parsed=[];save();render();toast(keep.length+' leads added');});
     $('#quickAdd').onclick=()=>{const n=$('#qn').value.trim();if(!n)return toast('Name is needed');
+      const phone=cleanPh($('#qp').value.trim()).slice(-10);
+      const existing=phone?S.leads.find(x=>cleanPh(x.phone).slice(-10)===phone):null;
+      if(existing&&!confirm('This number is already a customer — '+existing.name+' ('+(existing.customerId||'')+', '+existing.stage+'). Add as a new enquiry linked to them anyway?'))return;
       const l=newLead({name:n,phone:$('#qp').value.trim(),source:$('#qsrc').value,tag:$('#qtag').value,
         services:$('#qs').value?splitFee([$('#qs').value],Number($('#qf').value)||null,{}):[]});
       l.assignedTo=me.username;l.assignedBy=me.username;l.assignedAt=new Date().toISOString();
