@@ -111,6 +111,10 @@ tr.click:hover{background:linear-gradient(90deg,var(--brand-soft),#FAF8FD);curso
 .lead.mine{border-left:3px solid var(--brand);background:linear-gradient(90deg,var(--brand-soft) 0%,var(--card) 3%)}
 .lead.dead{opacity:.62}
 .lead.pri{border-left:3px solid var(--accent)}
+.lead.bulkpicked{outline:2px solid var(--brand);outline-offset:-1px;background:var(--brand-soft)}
+.bulkbar{position:sticky;top:0;z-index:20;background:var(--brand-dark);color:#fff;border-radius:12px;padding:10px 14px;margin-bottom:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;box-shadow:0 6px 18px -8px rgba(0,0,0,.4)}
+.bulkbar select,.bulkbar button{font-size:12.5px}
+.bulkbar .count{font-weight:700}
 .lead.compact{padding:9px 11px}
 .chd{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
 .pribox{display:inline-flex;align-items:center;cursor:pointer;flex:0 0 auto}
@@ -258,7 +262,8 @@ const NAVICON={
   services:'<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>',
   settings:'<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>',
   team:'<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="7" r="4"/><path d="M2 21v-2a4 4 0 0 1 4-4h6a4 4 0 0 1 4 4v2"/><circle cx="18" cy="8" r="3"/><path d="M22 21v-1.5a3.5 3.5 0 0 0-2.5-3.36"/></svg>',
-  customers:'<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/><path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3"/></svg>'
+  customers:'<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/><path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3"/></svg>',
+  email:'<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v16H4z"/><polyline points="22,6 12,13 2,6"/></svg>'
 };
 /* Compact action icon set for .acts buttons */
 const AICON={
@@ -311,7 +316,7 @@ const ALIAS={PITCH:'PD',DECK:'PD',PITCHDECK:'PD',SALESDECK:'SD',BPLAN:'BP',BIZPL
 // Bundle codes expand into more than one service code when typed in the paste dock.
 // COMB = Pitch Deck + Financial Model, the combination most often quoted together.
 const BUNDLES={COMB:['PD','FM']};
-const SECTIONS=[['dash','Dashboard'],['leads','Leads'],['projects','Projects'],['customers','Customer Database'],['team','Team Work & Follow-ups'],['tickets','Tickets'],['invoices','Quotations & Invoices'],['money','Payments'],['reports','Analytics'],['services','Services'],['settings','Setup']];
+const SECTIONS=[['dash','Dashboard'],['leads','Leads'],['projects','Projects'],['customers','Customer Database'],['team','Team Work & Follow-ups'],['tickets','Tickets'],['invoices','Quotations & Invoices'],['money','Payments'],['reports','Analytics'],['services','Services'],['email','Email'],['settings','Setup']];
 const FEATURES=[['createInvoice','Create quotations & invoices'],['recordPayment','Record payments'],['assignAny','Assign leads to anyone'],
   ['deleteLead','Delete leads'],['export','Export & backup'],['editServices','Edit service catalogue'],['manageUsers','Manage logins & permissions'],['viewAllMoney','See all money figures']];
 const PRESETS={'Get Set Startup':{brand:'#4B0FA0',dark:'#2A0660',accent:'#F0C000',bg:'#F6F3FA'},
@@ -397,6 +402,17 @@ const DEFAULTS=()=>({
       {id:'followup',label:'Follow up',body:'Hi {name}, following up on our conversation{svc_about}. Happy to clear any questions — shall we take this forward?'},
       {id:'payment',label:'Payment nudge',body:'Hi {name}, gentle reminder about the balance of {balance} on your project.{upi_line} Kindly confirm once done. Thank you!'},
       {id:'docs',label:'Document request',body:'Hi {name}, to move ahead with {svc_plain}, could you please share the following at your earliest: PAN, GST certificate (if applicable), and any supporting documents relevant to the project. Thank you!'}
+    ],
+    autoSendInvoiceEmail:true,autoSendDueReminders:false,bccEmailInternal:'',defaultFromAlias:'',
+    emailTemplates:[
+      {id:'quotation',label:'New quotation',subject:'Quotation {invoiceNumber} from {company}',
+        body:'Dear {name},\n\nThank you for the opportunity. Please find attached quotation {invoiceNumber} for {total}.\n\nPayment details:{upi_line}\n\nRegards,\n{company}'},
+      {id:'invoice',label:'New invoice',subject:'Invoice {invoiceNumber} from {company}',
+        body:'Dear {name},\n\nPlease find attached invoice {invoiceNumber} for {total}. Balance due: {balance}, by {dueDate}.\n\nPayment details:{upi_line}\n\nRegards,\n{company}'},
+      {id:'due',label:'Payment due (automatic)',subject:'Payment reminder — {invoiceNumber}',
+        body:'Dear {name},\n\nThis is a reminder that payment of {balance} against invoice {invoiceNumber} was due on {dueDate}. Kindly arrange payment at your earliest.{upi_line}\n\nRegards,\n{company}'},
+      {id:'followupdue',label:'Payment follow-up (manual)',subject:'Following up — {invoiceNumber} still pending',
+        body:'Dear {name},\n\nFollowing up on invoice {invoiceNumber} — {balance} is still outstanding. Please let us know if you have any questions or need this resent.{upi_line}\n\nRegards,\n{company}'}
     ]}
 });
 let S=DEFAULTS(),route='dash',me=null,syncState='off',lastSync='';
@@ -651,6 +667,20 @@ function migrate(){
   if(S.settings.hideMoneyFromStaff===undefined)S.settings.hideMoneyFromStaff=false;
   if(S.settings.restrictStaffToOwn===undefined)S.settings.restrictStaffToOwn=false;
   S.settings.tagBundles=S.settings.tagBundles||[];
+  if(S.settings.autoSendInvoiceEmail===undefined)S.settings.autoSendInvoiceEmail=true;
+  if(S.settings.autoSendDueReminders===undefined)S.settings.autoSendDueReminders=false;
+  S.settings.bccEmailInternal=S.settings.bccEmailInternal||'';
+  S.settings.defaultFromAlias=S.settings.defaultFromAlias||'';
+  S.settings.emailTemplates=S.settings.emailTemplates&&S.settings.emailTemplates.length?S.settings.emailTemplates:[
+    {id:'quotation',label:'New quotation',subject:'Quotation {invoiceNumber} from {company}',
+      body:'Dear {name},\n\nThank you for the opportunity. Please find attached quotation {invoiceNumber} for {total}.\n\nPayment details:{upi_line}\n\nRegards,\n{company}'},
+    {id:'invoice',label:'New invoice',subject:'Invoice {invoiceNumber} from {company}',
+      body:'Dear {name},\n\nPlease find attached invoice {invoiceNumber} for {total}. Balance due: {balance}, by {dueDate}.\n\nPayment details:{upi_line}\n\nRegards,\n{company}'},
+    {id:'due',label:'Payment due (automatic)',subject:'Payment reminder — {invoiceNumber}',
+      body:'Dear {name},\n\nThis is a reminder that payment of {balance} against invoice {invoiceNumber} was due on {dueDate}. Kindly arrange payment at your earliest.{upi_line}\n\nRegards,\n{company}'},
+    {id:'followupdue',label:'Payment follow-up (manual)',subject:'Following up — {invoiceNumber} still pending',
+      body:'Dear {name},\n\nFollowing up on invoice {invoiceNumber} — {balance} is still outstanding. Please let us know if you have any questions or need this resent.{upi_line}\n\nRegards,\n{company}'}
+  ];
   S.settings.msgTemplates=S.settings.msgTemplates&&S.settings.msgTemplates.length?S.settings.msgTemplates:[
     {id:'intro',label:'Intro',body:'Hello {name}, this is {me} from {company}. Thank you for reaching out{svc_about}. When would be a good time for a short call to understand your requirement?'},
     {id:'quote',label:'Send quote',body:'Hi {name}, as discussed, here is our proposal{svc_for}{fee_colon}. It covers end-to-end preparation with revisions until you are satisfied. Shall I send the quotation so we can begin?'},
@@ -795,9 +825,9 @@ const invTotals=i=>{const sub=(i.items||[]).reduce((s,x)=>s+(Number(x.qty)||0)*(
   return {sub,disc:discAmt,base,tax,cgst:taxMode==='cgst'?tax/2:0,sgst:taxMode==='cgst'?tax/2:0,igst:taxMode==='igst'?tax:0,total:Math.round((base+tax)*100)/100};};
 const paidOn=id=>S.payments.filter(p=>p.invoiceId===id).reduce((s,p)=>s+(Number(p.amount)||0),0);
 const dueOn=i=>Math.max(0,invTotals(i).total-paidOn(i.id));
-const invState=i=>{if(i.status==='cancelled')return 'cancelled';if(dueOn(i)<=0.5)return 'paid';
+const invState=i=>{if(i.status==='denied')return 'denied';if(i.status==='cancelled')return 'cancelled';if(dueOn(i)<=0.5)return 'paid';
   if(paidOn(i.id)>0)return 'partial';if(i.type==='proforma')return 'proforma';return days(i.dueDate||i.date)>0?'overdue':'unpaid';};
-const invPill=i=>{const m={paid:['g','Paid'],partial:['a','Part paid'],unpaid:['b','Sent'],overdue:['r','Overdue'],proforma:['n','Quotation'],cancelled:['n','Cancelled']}[invState(i)];return `<span class="pill ${m[0]}">${m[1]}</span>`;};
+const invPill=i=>{const m={paid:['g','Paid'],partial:['a','Part paid'],unpaid:['b','Sent'],overdue:['r','Overdue'],proforma:['n','Quotation'],cancelled:['n','Cancelled'],denied:['r','Denied']}[invState(i)];return `<span class="pill ${m[0]}">${m[1]}</span>`;};
 const leadOf=id=>S.leads.find(l=>l.id===id);
 const coOf=id=>S.companies.find(c=>c.id===id)||S.companies[0];
 const openInvoices=()=>S.invoices.filter(i=>i.status!=='cancelled'&&dueOn(i)>0.5);
@@ -878,14 +908,15 @@ function render(){
   const alerts=openInvoices().filter(i=>invState(i)==='overdue').length+S.leads.filter(l=>l.paymentIssue).length;
   const openTk=S.tickets.filter(t=>!['Resolved','Closed'].includes(t.status)).length;
   const myDueToday=S.leads.filter(l=>l.assignedTo===me.username&&l.followUp&&l.followUp<=today()&&!DEAD.includes(l.stage)).length;
-  const counts={leads:S.leads.filter(l=>OPEN_STAGES.includes(l.stage)).length,projects:S.leads.filter(isProject).length,
-    team:myDueToday||'',tickets:openTk||'',invoices:S.invoices.length,money:alerts?'!':''};
+  const counts={leads:S.leads.filter(l=>OPEN_STAGES.includes(l.stage)).length,
+    projects:S.leads.filter(l=>isProject(l)&&l.stage!=='Completed').length,
+    team:myDueToday||'',tickets:openTk||'',invoices:openInvoices().length,money:alerts?'!':''};
   $('#app').innerHTML=`<div class="shell">
   <button class="hamburger" id="hamburger" aria-label="Open menu"><span></span><span></span><span></span></button>
   <div class="scrim mobonly" id="sideScrim" style="display:none"></div>
   <nav class="side" id="sideNav">
     <img class="logo" src="${LOGO_UI}" alt="Get Set Startup"><div class="tagline">CRM · getsetstartup.biz</div>
-    ${['dash','leads','projects','customers','team','tickets','invoices','money','reports','services','settings']
+    ${['dash','leads','projects','customers','team','tickets','invoices','money','reports','services','email','settings']
       .filter(id=>canSee(id)).map(id=>nav(id,NAVICON[id],SECTIONS.find(s=>s[0]===id)[1],counts[id])).join('')}
     <div class="foot"><div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">${avatar(Object.assign({},me,{photo:myPhoto()}),30)}
       <div><b style="display:block">${esc(me.name||me.username)}</b>${esc(me.role||'')}</div></div>
@@ -893,13 +924,18 @@ function render(){
       <button class="btn sm ghost" id="myProfile" style="width:100%;margin-bottom:6px">My profile</button>
       <button class="btn sm ghost" id="signout" style="width:100%">Sign out</button></div></nav>
     <main class="main" id="view"></main></div>`;
-  $('#view').innerHTML={dash:vDash,leads:vLeads,projects:vProjects,customers:vCustomers,team:vTeam,tickets:vTickets,invoices:vInvoices,money:vMoney,reports:vReports,services:vServices,settings:vSettings}[route]();
+  $('#view').innerHTML={dash:vDash,leads:vLeads,projects:vProjects,customers:vCustomers,team:vTeam,tickets:vTickets,invoices:vInvoices,money:vMoney,reports:vReports,services:vServices,email:vEmail,settings:vSettings}[route]();
   paintSync();
   $('#signout').onclick=signOut;
   $('#myProfile').onclick=()=>editProfile(me.username);
   $('#syncBadge').onclick=()=>{if(S.settings.api&&me)pushNow();};
   const rsb=$('#retrySyncBanner');rsb&&(rsb.onclick=()=>{if(S.settings.api&&me)pushNow();});
   const mfy=$('#moneyFYSel');mfy&&(mfy.onchange=e=>{moneyFY=e.target.value;render();});
+  const ebc=$('#expByCompany');ebc&&(ebc.onclick=()=>{download('gss-projects-by-company.csv',toCSV(exportByCompanyDetailed()));toast('Exported');});
+  const rf=$('#repFrom');rf&&(rf.onchange=e=>{reportsFilt.from=e.target.value;render();});
+  const rt=$('#repTo');rt&&(rt.onchange=e=>{reportsFilt.to=e.target.value;render();});
+  const rtag=$('#repTag');rtag&&(rtag.onchange=e=>{reportsFilt.tag=e.target.value;render();});
+  const rclear=$('#repClear');rclear&&(rclear.onclick=()=>{reportsFilt={from:'',to:'',tag:''};render();});
   document.querySelectorAll('[data-coexpand]').forEach(b=>b.onclick=()=>{moneyCoOpen[b.dataset.coexpand]=!moneyCoOpen[b.dataset.coexpand];render();});
   const custq=$('#custq');custq&&(custq.oninput=e=>{custFilt.q=e.target.value;});
   const hmt=$('#hideMoneyToggle');hmt&&(hmt.onchange=()=>{S.settings.hideMoneyFromStaff=hmt.checked;
@@ -908,14 +944,18 @@ function render(){
   const rst=$('#restrictStaffToggle');rst&&(rst.onchange=()=>{S.settings.restrictStaffToOwn=rst.checked;
     audit('Turned '+(rst.checked?'on':'off')+' restrict-staff-to-own-leads');save();render();
     toast(rst.checked?'Staff now only see their own leads':'Staff can see everyone\u2019s leads again');});
-  document.querySelectorAll('[data-tmplabel]').forEach(el=>el.onchange=()=>{S.settings.msgTemplates[+el.dataset.tmplabel].label=el.value.trim()||'Template';save();});
-  document.querySelectorAll('[data-tmplbody]').forEach(el=>el.onchange=()=>{S.settings.msgTemplates[+el.dataset.tmplbody].body=el.value;save();});
-  document.querySelectorAll('[data-tmplrm]').forEach(el=>el.onclick=()=>{
-    if(!confirm('Remove this template?'))return;
-    S.settings.msgTemplates.splice(+el.dataset.tmplrm,1);save();render();});
-  const at=$('#addTmpl');at&&(at.onclick=()=>{
-    S.settings.msgTemplates.push({id:uid('tmpl'),label:'New template',body:'Hi {name}, '});
-    save();render();});
+  const otp=$('#openTmplPage');otp&&(otp.onclick=()=>editMsgTemplates());
+  const astInv=$('#autoSendInvToggle');astInv&&(astInv.onchange=()=>{S.settings.autoSendInvoiceEmail=astInv.checked;save();
+    toast(astInv.checked?'Will auto-send new documents':'Auto-send turned off');});
+  const astDue=$('#autoSendDueToggle');astDue&&(astDue.onchange=()=>{S.settings.autoSendDueReminders=astDue.checked;save();
+    toast(astDue.checked?'Automatic due reminders on':'Automatic due reminders off');});
+  const bccIn=$('#bccEmail');bccIn&&(bccIn.onchange=()=>{S.settings.bccEmailInternal=bccIn.value.trim();save();});
+  const fromSel=$('#fromAliasSel');fromSel&&(fromSel.onchange=()=>{S.settings.defaultFromAlias=fromSel.value;save();});
+  if(fromSel&&emailSendAsOptions===null){loadSendAsOptions().then(()=>render());}
+  document.querySelectorAll('[data-etmplabel]').forEach(el=>el.onchange=()=>{S.settings.emailTemplates[+el.dataset.etmplabel].label=el.value.trim()||'Template';save();});
+  document.querySelectorAll('[data-etmpsubject]').forEach(el=>el.onchange=()=>{S.settings.emailTemplates[+el.dataset.etmpsubject].subject=el.value;save();});
+  document.querySelectorAll('[data-etmpbody]').forEach(el=>el.onchange=()=>{S.settings.emailTemplates[+el.dataset.etmpbody].body=el.value;save();});
+  const lel=$('#loadEmailLogBtn');lel&&(lel.onclick=()=>{loadEmailLog().then(()=>render());render();});
   custq&&(custq.onblur=()=>render());custq&&(custq.onkeydown=e=>{if(e.key==='Enter')render();});
   document.querySelectorAll('[data-custopen]').forEach(el=>el.onclick=()=>openCustomer(el.dataset.custopen));
   const fc=$('#fcompleted');fc&&(fc.onclick=()=>{projFilt.showCompleted=!projFilt.showCompleted;render();});
@@ -1213,11 +1253,13 @@ function filterBar(scope){
   </div>`;
 }
 const STATUS_ACTIONS=['Contacted','Interested','Call Later','Quotation Sent','Advance Paid','On Hold','Not Interested','Fake','Lost','Completed'];
+let bulkMode=false,bulkSelected=new Set();
 function leadCard(l,sno){
   const u=(l.statusUpdates||[]).slice(-1)[0],mine=l.assignedTo===me.username,na=nextAction(l),dead=DEAD.includes(l.stage);
-  return `<div class="lead compact ${mine?'mine':''} ${dead?'dead':''} ${l.priority?'pri':''}" data-card="${l.id}">
+  return `<div class="lead compact ${mine?'mine':''} ${dead?'dead':''} ${l.priority?'pri':''} ${bulkSelected.has(l.id)?'bulkpicked':''}" data-card="${l.id}">
     <div class="chd">
-      <label class="pribox" title="Mark as priority"><input type="checkbox" data-pri="${l.id}" ${l.priority?'checked':''}></label>
+      ${bulkMode?`<label class="pribox" title="Select"><input type="checkbox" data-bulkpick="${l.id}" ${bulkSelected.has(l.id)?'checked':''}></label>`
+        :`<label class="pribox" title="Mark as priority"><input type="checkbox" data-pri="${l.id}" ${l.priority?'checked':''}></label>`}
       <span class="pill tag sm">${esc(l.tag||'GSS')}</span>
       <b data-lead="${l.id}" class="cname" style="cursor:pointer">${sno?`<span class="sno">#${sno}</span>`:''}${esc(l.name)}</b>
       ${stagePill(l.stage)}${scorePill(l)}
@@ -1259,7 +1301,17 @@ function leadCard(l,sno){
 }
 function vLeads(){
   const rows=leadRows('leads');
-  return `${syncWarningBanner()}${inboxBanner()}<div class="topbar"><div><h1>Leads</h1><p class="sub">${rows.length} shown · ${S.leads.length} on file</p></div></div>
+  return `${syncWarningBanner()}${inboxBanner()}<div class="topbar"><div><h1>Leads</h1><p class="sub">${rows.length} shown · ${S.leads.length} on file</p></div><div class="spacer"></div>
+    <button class="btn sm ${bulkMode?'gold':'ghost'}" id="toggleBulk">${bulkMode?'✕ Cancel select':'☑ Select multiple'}</button></div>
+  ${bulkMode?`<div class="bulkbar">
+    <span class="count">${bulkSelected.size} selected</span>
+    <button class="btn sm ghost" id="bulkSelectAll" style="background:transparent;color:#fff;border-color:rgba(255,255,255,.4)">Select all shown (${rows.length})</button>
+    <button class="btn sm ghost" id="bulkSelectNone" style="background:transparent;color:#fff;border-color:rgba(255,255,255,.4)">Clear</button>
+    <select id="bulkAssign" style="min-width:130px"><option value="">Assign to…</option>${team().map(t=>`<option value="${esc(t.username)}">${esc(t.name)}</option>`).join('')}<option value="__none__">— nobody —</option></select>
+    <select id="bulkTag" style="min-width:100px"><option value="">Tag as…</option>${S.tags.map(t=>`<option>${esc(t)}</option>`).join('')}</select>
+    <button class="btn sm gold" id="bulkPriorityOn">★ Mark priority</button>
+    <button class="btn sm ghost" id="bulkPriorityOff" style="background:transparent;color:#fff;border-color:rgba(255,255,255,.4)">☆ Unmark priority</button>
+  </div>`:''}
   <div class="dock"><div class="eyebrow">Paste dock</div>
     <textarea id="paste" placeholder="GSS Shivam Dubey PD FP 35k
 9118283905
@@ -1808,16 +1860,26 @@ function vInvoices(){
   const worksInProgress=S.leads.filter(l=>isProject(l)&&l.work!=='Final delivered').length;
   const totalBilled=S.invoices.filter(i=>i.type==='tax'&&i.status!=='cancelled').reduce((s,i)=>s+invTotals(i).total,0);
   const totalCollected=S.invoices.reduce((s,i)=>s+paidOn(i.id),0);
+  const deniedQuotes=S.invoices.filter(i=>i.type==='proforma'&&i.status==='denied');
   return `<div class="topbar"><div><h1>Quotations &amp; Invoices</h1><p class="sub">Every proforma and tax invoice raised, with customer details, ageing and work status.</p></div><div class="spacer"></div>
     ${can('export')?`<button class="btn ghost" id="expInv">Export CSV (${rows.length} shown)</button>`:''}
     ${can('createInvoice')?`<button class="btn ghost" id="newPf">+ Quotation</button><button class="btn" id="newInv">+ Invoice</button>`:''}</div>
   <div class="kpis" style="margin-bottom:14px">
     ${kpi('Quotations sent',quotesSent,invRaised+' converted to invoices')}
     ${kpi('Advance received',advanceReceived,'leads that paid something','hi')}
+    ${kpi('Denied / rejected',deniedQuotes.length,quotesSent?Math.round(deniedQuotes.length/quotesSent*100)+'% of quotations sent':'',deniedQuotes.length?'bad':'')}
     ${kpi('Works completed',worksCompleted,worksInProgress+' still in progress','hi')}
     ${kpi('Total billed',short(totalBilled),'across all tax invoices')}
     ${kpi('Total collected',short(totalCollected),totalBilled?Math.round(totalCollected/totalBilled*100)+'% of billed':'','hi')}
   </div>
+  ${deniedQuotes.length?`<div class="card" style="margin-bottom:14px"><h2>Denied / rejected quotations</h2>
+    ${deniedQuotes.sort((a,b)=>(b.deniedAt||'').localeCompare(a.deniedAt||'')).slice(0,10).map(i=>{const l=leadOf(i.leadId);
+      return `<div class="row" style="align-items:center;border-bottom:1px solid var(--line);padding:8px 0">
+      <div style="flex:2"><b class="mono">${esc(i.number)}</b> ${l?'· '+esc(l.name):''}<div class="eyebrow">${i.deniedAt?fmtD(i.deniedAt.slice(0,10))+' · ':''}${esc(nameOf(i.deniedBy)||'')}</div>
+        ${i.denyReason?`<div style="font-size:13px;margin-top:2px">${esc(i.denyReason)}</div>`:''}</div>
+      <div style="text-align:right;flex:0 0 auto">${inr(invTotals(i).total)}</div></div>`;}).join('')}
+    ${deniedQuotes.length>10?`<p class="sub" style="margin-top:8px">Showing latest 10 of ${deniedQuotes.length}.</p>`:''}
+  </div>`:''}
   <div class="row" style="margin-bottom:10px">
     <button class="btn sm ${invFilt.kind===''?'':'ghost'}" data-invkind="" style="flex:0 0 auto">All (${counts.all})</button>
     <button class="btn sm ${invFilt.kind==='proforma'?'':'ghost'}" data-invkind="proforma" style="flex:0 0 auto">Quotations / PI (${counts.proforma})</button>
@@ -1845,7 +1907,11 @@ function vInvoices(){
       <td class="num" style="${bal>0.5?'color:var(--bad);font-weight:600':''}">${bal>0.5?inr(bal):'—'}</td>
       <td><span class="pill n">${esc(l?(isProject(l)?l.work:'—'):'—')}</span></td>
       <td>${invPill(i)}</td>
-      <td style="white-space:nowrap" onclick="event.stopPropagation()"><button class="btn sm ghost" data-dlinv="${i.id}" title="Download / print">${AICON.down}</button></td>
+      <td style="white-space:nowrap" onclick="event.stopPropagation()">
+        <button class="btn sm ghost" data-dlinv="${i.id}" title="Download / print">${AICON.down}</button>
+        ${i.type==='proforma'&&i.status!=='denied'&&i.status!=='cancelled'&&paidOn(i.id)<=0?`<button class="btn sm ghost" data-denyinv="${i.id}" style="color:var(--bad)" title="Mark denied / rejected">✕ Deny</button>`:''}
+        ${i.status==='denied'?`<button class="btn sm ghost" data-undenyinv="${i.id}" title="Undo denial">↺</button>`:''}
+      </td>
       </tr>`;}).join(''):`<tr><td colspan="13"><div class="empty"><b>No documents yet</b>Open a lead and raise a quotation.</div></td></tr>`}
     </tbody></table></div></div>`;
 }
@@ -1859,6 +1925,30 @@ function nextNumber(co,type,forDate){
 function nextQuotationId(){
   const key='QID';const n=(S.seq[key]||4744)+1;S.seq[key]=n;return String(n);
 }
+const DENY_REASONS=['Too expensive','Went with a competitor','No budget right now','Timing not right','Scope not a fit','Client went silent','Other'];
+function denyQuotation(id){
+  const inv=S.invoices.find(i=>i.id===id);if(!inv)return;
+  const l=leadOf(inv.leadId);
+  layer(`<div class="dhead"><div style="flex:1"><div class="eyebrow">Mark as denied / rejected</div><h1 style="font-size:19px" class="mono">${esc(inv.number)}</h1>
+    <div class="sub">${esc(l?l.name:'')}</div></div><button class="x" data-close>✕</button></div>
+  <div class="dbody"><div class="card">
+    <label class="f"><span>Reason</span><select id="denyReason">${DENY_REASONS.map(r=>`<option>${r}</option>`).join('')}</select></label>
+    <label class="f"><span>Note (optional)</span><textarea id="denyNote" rows="3" placeholder="Any extra detail…"></textarea></label>
+    <button class="btn wide" style="background:linear-gradient(155deg,var(--pink),#D40E3C)" id="denySave">Mark denied</button>
+  </div></div>`,()=>render());
+  $('#denySave').onclick=()=>{
+    const reason=$('#denyReason').value,note=$('#denyNote').value.trim();
+    inv.status='denied';inv.denyReason=reason+(note?' — '+note:'');inv.deniedAt=new Date().toISOString();inv.deniedBy=me.username;
+    if(l){addUpdate(l.id,'Quotation '+inv.number+' denied/rejected: '+reason,true);}
+    audit('Marked '+inv.number+' as denied — '+reason);
+    save();closeLayer(true);render();toast('Marked as denied');};
+}
+function undenyQuotation(id){
+  const inv=S.invoices.find(i=>i.id===id);if(!inv)return;
+  if(!confirm('Undo the denied status on '+inv.number+'?'))return;
+  inv.status='sent';delete inv.denyReason;delete inv.deniedAt;delete inv.deniedBy;
+  audit('Reopened '+inv.number+' (removed denied status)');save();render();toast('Denial removed');
+}
 function editInvoice(id,seed){
   if(!can('createInvoice'))return toast('You do not have access to invoicing');
   let inv=id?S.invoices.find(i=>i.id===id):null;const isNew=!inv;
@@ -1869,9 +1959,16 @@ function editInvoice(id,seed){
       quotationId:seed.quotationId||nextQuotationId(),number:'(on save)',date:today(),
       dueDate:new Date(Date.now()+(S.settings.dueDays||7)*864e5).toISOString().slice(0,10),items,
       taxMode:'igst',gstRate:S.settings.gstRate||18,
-      discount:0,discMode:'pct',status:'draft',notes:'',terms:co.terms||S.settings.defaultTerms||'',by:me.username};}
+      discount:0,discMode:'pct',status:'draft',notes:'',terms:co.terms||S.settings.defaultTerms||'',by:me.username,edits:[]};}
   if(!inv.taxMode)inv.taxMode=inv.gstOn===false?'none':(inv.igst?'igst':'cgst');
   if(!inv.discMode)inv.discMode='amt';
+  inv.edits=inv.edits||[];
+  // Snapshot the figures that actually matter for a paper trail — not every keystroke, just
+  // the total, discount, tax setting, and item count/prices. Compared against the values at
+  // commit() time so an edit to an already-raised document leaves a specific before/after
+  // record, not just a generic "invoice edited" line in the activity log.
+  const snapshotBefore=isNew?null:{total:invTotals(inv).total,discount:inv.discount,discMode:inv.discMode,
+    taxMode:inv.taxMode,gstRate:inv.gstRate,items:JSON.stringify((inv.items||[]).map(it=>[it.name,it.qty,it.rate]))};
   const draw2=()=>{
     const t=invTotals(inv);
     const l=leadOf(inv.leadId),paid=paidOn(inv.id),co=coOf(inv.companyId);
@@ -1886,7 +1983,7 @@ function editInvoice(id,seed){
           <input id="iclientco" value="${esc(l?l.company||'':'')}" placeholder="${l?esc(l.name):'Leave blank to print the contact name instead'}"></label>
         ${l&&!(l.company&&l.company.trim())?`<div class="eyebrow" style="color:var(--warn);margin:-4px 0 8px">No business name on file — "${esc(l.name)}" will print as the Name instead. Fill this in if this client has a company/business name.</div>`:''}
         <div class="eyebrow" style="margin:-2px 0 8px">${esc(co.gstin||'no GSTIN set')} · ${esc(co.addr||'no address set')}${co.city?', '+esc(co.city):''} · <a href="#" data-editco="${co.id}">edit company details</a></div>
-        <div class="row"><label class="f"><span>Quotation ID</span><input value="${esc(inv.quotationId||'')}" id="iqid" class="mono"></label>
+        <div class="row"><label class="f"><span>Quotation ID <span class="eyebrow">(auto, one continuous series across every company)</span></span><input value="${esc(inv.quotationId||'')}" disabled class="mono" style="opacity:.7"></label>
         <label class="f"><span>${inv.type==='tax'?'Invoice no.':'Proforma invoice no.'}</span><input value="${esc(inv.number)}" disabled class="mono" style="opacity:.7"></label>
         <label class="f"><span>Date</span><input type="date" id="idate" value="${inv.date}"></label></div>
         <div class="row"><label class="f"><span>Due date</span><input type="date" id="idue" value="${inv.dueDate||''}"></label>
@@ -1933,13 +2030,22 @@ function editInvoice(id,seed){
       <div class="acts"><button id="saveInv"><span class="ic">${AICON.check}</span>Save</button><button id="printInv"><span class="ic">${AICON.print}</span>Print / PDF</button>
         ${inv.type==='proforma'?`<button id="convert"><span class="ic">${AICON.arrow}</span>Make tax invoice</button>`:''}
         ${can('recordPayment')?`<button id="payBtn"><span class="ic">${AICON.rupee}</span>Record payment</button>`:''}
-        <button id="mailInv"><span class="ic">${AICON.mail}</span>Email it</button><button id="waInv"><span class="ic">${ICON_WA}</span>WhatsApp it</button></div>
+        <button id="sendEmailBtn"><span class="ic">${AICON.mail}</span>Send email</button>
+        ${!isNew&&dueOn(inv)>0.5&&inv.type==='tax'?`<button id="sendFollowupBtn"><span class="ic">${AICON.clock}</span>Send follow-up</button>`:''}
+        <button id="waInv"><span class="ic">${ICON_WA}</span>WhatsApp it</button></div>
+      <label class="checkline" style="margin-top:6px"><input type="checkbox" id="stopAutoSend" ${inv.autoSendOff?'checked':''}> Don't auto-send this one by email</label>
+      ${(inv.emailLog||[]).length?`<div class="card"><h2>Emails sent</h2>
+        ${inv.emailLog.slice().reverse().map(e=>`<div class="eyebrow" style="padding:4px 0">${fmtDT(e.at)} · ${esc(e.kind)} · to ${esc(e.to)}</div>`).join('')}</div>`:''}
       ${S.payments.filter(p=>p.invoiceId===inv.id).length?`<div class="card"><h2>Payments received</h2>
         ${S.payments.filter(p=>p.invoiceId===inv.id).map(p=>`<div class="row" style="align-items:center;border-bottom:1px solid var(--line);padding:7px 0">
         <div style="flex:2"><b class="num">${inr(p.amount)}</b> <span class="pill n">${esc(p.mode)}</span><div class="eyebrow">${fmtD(p.date)}${p.ref?' · '+esc(p.ref):''}${p.by?' · '+esc(nameOf(p.by)):''}</div></div>
         <button class="btn sm ghost" data-rmpay="${p.id}" style="flex:0 0 auto">Remove</button></div>`).join('')}</div>`:''}
+      ${(inv.edits||[]).length?`<div class="card"><h2>Edit history</h2>
+        ${inv.edits.slice().reverse().map(e=>`<div style="border-bottom:1px solid var(--line);padding:8px 0">
+          <div class="eyebrow">${fmtDT(e.at)} · ${esc(nameOf(e.by))}</div>
+          <div style="font-size:13px;margin-top:2px">${e.changes.map(c=>esc(c)).join('<br>')}</div></div>`).join('')}</div>`:''}
       ${isNew?'':`<button class="btn ghost wide" id="delInv" style="color:var(--bad)">Delete invoice</button>`}</div>`,()=>{});
-    const pull=()=>{inv.companyId=$('#ico').value;inv.leadId=$('#ilead').value;inv.quotationId=$('#iqid').value.trim();
+    const pull=()=>{inv.companyId=$('#ico').value;inv.leadId=$('#ilead').value;
       const cc=$('#iclientco');if(cc&&inv.leadId){const l2=leadOf(inv.leadId);if(l2)l2.company=cc.value.trim();}
       inv.date=$('#idate').value;inv.dueDate=$('#idue').value;
       inv.taxMode=$('#itax').value;inv.gstOn=inv.taxMode!=='none';inv.igst=inv.taxMode==='igst';
@@ -1957,6 +2063,23 @@ function editInvoice(id,seed){
       const isFirstSave=inv.number.startsWith('(');
       if(isFirstSave){const co2=coOf(inv.companyId),nn=nextNumber(co2,inv.type,inv.date);inv.number=nn.number;S.seq[nn.key]=nn.n;}
       if(!S.invoices.find(i=>i.id===inv.id)){S.invoices.push(inv);audit('Raised '+inv.number);}
+      else if(snapshotBefore){
+        // Existing invoice — check what actually changed and record a specific before/after
+        // entry right on the document, rather than only a generic activity-log line.
+        const after={total:invTotals(inv).total,discount:inv.discount,discMode:inv.discMode,
+          taxMode:inv.taxMode,gstRate:inv.gstRate,items:JSON.stringify((inv.items||[]).map(it=>[it.name,it.qty,it.rate]))};
+        const changes=[];
+        if(Math.round(snapshotBefore.total)!==Math.round(after.total))changes.push('Total: '+inr(snapshotBefore.total)+' → '+inr(after.total));
+        if(snapshotBefore.discount!==after.discount||snapshotBefore.discMode!==after.discMode)
+          changes.push('Discount: '+(snapshotBefore.discMode==='pct'?snapshotBefore.discount+'%':inr(snapshotBefore.discount))+' → '+(after.discMode==='pct'?after.discount+'%':inr(after.discount)));
+        if(snapshotBefore.taxMode!==after.taxMode)changes.push('GST type: '+snapshotBefore.taxMode+' → '+after.taxMode);
+        else if(snapshotBefore.gstRate!==after.gstRate)changes.push('GST rate: '+snapshotBefore.gstRate+'% → '+after.gstRate+'%');
+        if(snapshotBefore.items!==after.items)changes.push('Line items changed');
+        if(changes.length){
+          inv.edits.push({at:new Date().toISOString(),by:me.username,changes});
+          audit('Edited '+inv.number+' — '+changes.join('; '));
+        }
+      }
       const l2=leadOf(inv.leadId);
       if(l2&&isFirstSave){
         if(OPEN_STAGES.includes(l2.stage)&&l2.stage!=='Quotation Sent')l2.stage='Quotation Sent';
@@ -1964,11 +2087,26 @@ function editInvoice(id,seed){
           text:(inv.type==='tax'?'Invoice ':'Quotation ')+inv.number+' raised and sent by '+me.name});
         l2.lastTouch=new Date().toISOString();
       }
-      save();};
+      save();
+      // Auto-send happens once, only on the very first save of a brand-new document — never
+      // on a later edit (that's always a manual "Send" from here on, exactly so a correction
+      // doesn't silently re-notify the client). Either the invoice's own "don't auto-send"
+      // switch or the global Setup toggle can stop it.
+      if(isFirstSave&&!inv.autoSendOff&&S.settings.autoSendInvoiceEmail){
+        const l3=leadOf(inv.leadId);
+        if(l3&&l3.email)sendInvoiceEmail(inv.id,inv.type==='tax'?'invoice':'quotation',true);
+      }};
     $('#saveInv').onclick=()=>{commit();closeLayer(true);render();toast('Saved');};
     $('#printInv').onclick=()=>{commit();printInvoice(inv.id);};
     const pb=$('#payBtn');pb&&(pb.onclick=()=>{commit();recordPayment(inv.id);});
-    $('#mailInv').onclick=()=>{commit();mailInvoice(inv.id);};
+    $('#sendEmailBtn').onclick=async()=>{commit();const l3=leadOf(inv.leadId);
+      if(!l3||!l3.email){mailInvoice(inv.id);return;}
+      toast('Sending…');const r=await sendInvoiceEmail(inv.id,inv.type==='tax'?'invoice':'quotation');
+      if(r.ok)draw2();};
+    const sfb=$('#sendFollowupBtn');sfb&&(sfb.onclick=async()=>{commit();
+      toast('Sending follow-up…');const r=await sendInvoiceEmail(inv.id,'followupdue');
+      if(r.ok)draw2();});
+    const sas=$('#stopAutoSend');sas&&(sas.onchange=()=>{inv.autoSendOff=sas.checked;save();});
     $('#waInv').onclick=()=>{commit();const l2=leadOf(inv.leadId),co2=coOf(inv.companyId);
       const t2=`Hi ${l2?l2.name:''}, sharing ${inv.type==='tax'?'invoice':'quotation'} ${inv.number} dated ${fmtD(inv.date)} for ${inr(invTotals(inv).total)}.${co2.upi?' UPI: '+co2.upi+'.':''}${co2.acNo?' Bank: '+co2.bank+', A/c '+co2.acNo+', IFSC '+co2.ifsc+'.':''} Thank you.`;
       if(l2&&l2.phone)window.open(wa(l2.phone)+'?text='+encodeURIComponent(t2),'_blank');copy(t2,'Message copied');};
@@ -2218,7 +2356,41 @@ function moneyByCompanySection(){
           :'<tr><td colspan="5"><div class="empty">No projects booked with this company.</div></td></tr>'}
         </tbody></table></div></td></tr>`:''}`).join('')
       :'<tr><td colspan="7"><div class="empty">No projects booked yet.</div></td></tr>'}
-    </tbody></table></div></div>`;
+    </tbody></table></div>
+    ${can('export')?`<button class="btn ghost wide" id="expByCompany" style="margin-top:10px">Export full project details by company (CSV)</button>`:''}
+  </div>`;
+}
+// One row per invoiced project, grouped by billing company, with everything a company-level
+// review would need: customer contact & billing details, GST, invoice dates, every payment
+// against it, and the gross/net/GST split. Deliberately one row per invoice (not per lead) —
+// a lead with a quotation AND a converted tax invoice would otherwise double up ambiguously,
+// and "net invoice value" only really means something against a specific document.
+function exportByCompanyDetailed(){
+  const header=['Billing company','Company legal name','Company GSTIN','Project / service type','Invoice number','Invoice date',
+    'Customer name','Customer phone','Customer business name','Customer email','Customer address','Customer city','Customer state','Customer PIN','Customer GSTIN',
+    'Gross amount','Discount','Net amount (after discount)','GST amount','Total invoice value','Amount paid','Balance due','Payment log','Work status','Project status'];
+  const rows=[header];
+  S.companies.forEach(co=>{
+    S.invoices.filter(i=>i.companyId===co.id&&i.type==='tax'&&i.status!=='cancelled').forEach(inv=>{
+      const l=leadOf(inv.leadId)||{};
+      const t=invTotals(inv);
+      const pays=S.payments.filter(p=>p.invoiceId===inv.id).sort((a,b)=>a.date<b.date?-1:1);
+      const payLog=pays.map(p=>fmtD(p.date)+': '+inr(p.amount)+' ('+p.mode+(p.ref?', ref '+p.ref:'')+')').join('; ');
+      const paid=pays.reduce((s,p)=>s+Number(p.amount||0),0);
+      rows.push([
+        co.name,co.legal||co.name,co.gstin||'',
+        leadSvcNames(l)||'',
+        inv.number,fmtD(inv.date),
+        l.name||'',l.phone||'',l.company||'',l.email||'',
+        l.addr||'',l.city||'',l.state||'',l.pin||'',l.gstin||'',
+        inr(t.sub),inr(t.disc),inr(t.base),inr(t.tax),inr(t.total),
+        inr(paid),inr(Math.max(0,t.total-paid)),
+        payLog||'No payments yet',
+        l.work||'',l.stage||''
+      ]);
+    });
+  });
+  return rows;
 }
 
 /* ---------- reminders, mail, print ---------- */
@@ -2257,6 +2429,42 @@ function mailInvoice(invId){
   if(l&&l.email)window.location.href=`mailto:${l.email}?subject=${encodeURIComponent(sub)}&body=${encodeURIComponent(body)}`;
   else copy(body,'No email on file — text copied');
   if(i.status==='draft'){i.status='sent';save();}
+}
+// Fills a saved email template's {placeholders} with real invoice/lead/company data. Mirrors
+// the WhatsApp template filler but with the fields an emailed invoice actually needs.
+function fillEmailTemplate(body,inv,l,co){
+  const t=invTotals(inv),paid=paidOn(inv.id),bal=dueOn(inv);
+  const vars={name:l?l.name:'Sir/Madam',company:co.name||'Get Set Startup',invoiceNumber:inv.number,
+    dueDate:fmtD(inv.dueDate||inv.date),total:inr(t.total),balance:inr(bal),paid:inr(paid),
+    upi_line:co.upi?'\nUPI: '+co.upi+(co.acName?'\nAccount: '+co.acName:'')+(co.bank?'\nBank: '+co.bank+' · A/c '+co.acNo+' · IFSC '+co.ifsc:''):''};
+  return String(body||'').replace(/\{(\w+)\}/g,(m,k)=>vars[k]!==undefined?vars[k]:'');
+}
+// The real "send it for real, with a PDF attached" path — calls the backend, which renders
+// the PDF server-side and emails it via MailApp/GmailApp. `kind` picks which saved template
+// to use and is what shows up in the sent-email log.
+async function sendInvoiceEmail(invId,kind,silent){
+  const inv=S.invoices.find(x=>x.id===invId);if(!inv)return {ok:false,error:'Invoice not found'};
+  const l=leadOf(inv.leadId),co=coOf(inv.companyId);
+  if(!l||!l.email)return {ok:false,error:'No email address on file for this client.'};
+  if(!S.settings.api)return {ok:false,error:'Not connected to a backend — email needs the Google Sheet connection.'};
+  const tmpl=(S.settings.emailTemplates||[]).find(t=>t.id===kind)||{subject:'{invoiceNumber}',body:'Please find attached.'};
+  const t=invTotals(inv),paid=paidOn(inv.id),bal=dueOn(inv);
+  const subject=fillEmailTemplate(tmpl.subject,inv,l,co),body=fillEmailTemplate(tmpl.body,inv,l,co);
+  try{
+    const r=await api('sendEmail',{invoice:inv,lead:l,company:co,brand:S.settings.brand,
+      total:t.total,paid,balance:bal,words:words(t.total),subject,body,kind,
+      fromAlias:S.settings.defaultFromAlias||undefined});
+    if(r.ok){
+      if(!silent)toast('Email sent to '+l.email);
+      inv.emailLog=inv.emailLog||[];
+      inv.emailLog.push({at:new Date().toISOString(),by:me.username,to:l.email,kind});
+      addUpdate(l.id,(kind==='due'||kind==='followupdue'?'Payment reminder':inv.type==='tax'?'Invoice':'Quotation')+' '+inv.number+' emailed to '+l.email,true);
+      audit('Emailed '+inv.number+' to '+l.email);
+      if(inv.status==='draft')inv.status='sent';
+      save();
+    }else if(!silent)toast(r.error||'Could not send email');
+    return r;
+  }catch(e){if(!silent)toast('Could not reach the backend to send email');return {ok:false,error:String(e)};}
 }
 function printInvoice(invId){
   const i=S.invoices.find(x=>x.id===invId),l=leadOf(i.leadId)||{},co=coOf(i.companyId),b=S.settings.brand;
@@ -2512,8 +2720,12 @@ function vTeam(){
     </tbody></table></div>${own.length>25?`<p class="sub" style="margin-top:8px">Showing latest 25 of ${own.length}.</p>`:''}</div>`;}).join('')}
   `;
 }
+let reportsFilt={from:'',to:'',tag:''};
 function vReports(){
-  const L=staffLocked()?visibleLeads():S.leads;
+  let L=staffLocked()?visibleLeads():S.leads;
+  if(reportsFilt.from)L=L.filter(l=>l.createdAt.slice(0,10)>=reportsFilt.from);
+  if(reportsFilt.to)L=L.filter(l=>l.createdAt.slice(0,10)<=reportsFilt.to);
+  if(reportsFilt.tag)L=L.filter(l=>l.tag===reportsFilt.tag);
   const mo=[];for(let k=5;k>=0;k--){const d=new Date();d.setMonth(d.getMonth()-k);mo.push(d.toISOString().slice(0,7));}
   const leadsBy=mo.map(m=>L.filter(l=>l.createdAt.slice(0,7)===m).length);
   const collBy=mo.map(m=>collectedIn(m));
@@ -2549,7 +2761,13 @@ function vReports(){
   const fakeThisMo=newThisMo.filter(l=>l.stage==='Fake').length;
   const failedIncFakeThisMo=failedThisMo+fakeThisMo;
   return `<div class="topbar"><div><h1>Analytics</h1><p class="sub">Everything on file, six months of trend.</p></div></div>
-  <div class="card" style="margin-bottom:14px"><h2>This month — ${new Date(thisMo+'-01').toLocaleDateString('en-IN',{month:'long',year:'numeric'})}</h2>
+  <div class="row" style="margin-bottom:14px">
+    <input type="date" id="repFrom" value="${reportsFilt.from}" title="From date">
+    <input type="date" id="repTo" value="${reportsFilt.to}" title="To date">
+    <select id="repTag"><option value="">All tags</option>${S.tags.map(t=>`<option${reportsFilt.tag===t?' selected':''}>${esc(t)}</option>`).join('')}</select>
+    ${(reportsFilt.from||reportsFilt.to||reportsFilt.tag)?`<button class="btn sm ghost" id="repClear" style="flex:0 0 auto">Clear filters</button>`:''}
+  </div>
+  ${reportsFilt.from||reportsFilt.to?'':`<div class="card" style="margin-bottom:14px"><h2>This month — ${new Date(thisMo+'-01').toLocaleDateString('en-IN',{month:'long',year:'numeric'})}</h2>
     <div class="kpis">
       ${kpi('New leads',newThisMo.length,'came in this month')}
       ${kpi('Converted',convertedThisMo,newThisMo.length?Math.round(convertedThisMo/newThisMo.length*100)+'% of new leads':'','hi')}
@@ -2557,7 +2775,7 @@ function vReports(){
       ${kpi('Failed / not interested',failedThisMo,newThisMo.length?Math.round(failedThisMo/newThisMo.length*100)+'% of new leads':'',failedThisMo?'warn':'')}
       ${kpi('Fake',fakeThisMo,newThisMo.length?Math.round(fakeThisMo/newThisMo.length*100)+'% of new leads':'',fakeThisMo?'bad':'')}
       ${kpi('Failed incl. fake',failedIncFakeThisMo,newThisMo.length?Math.round(failedIncFakeThisMo/newThisMo.length*100)+'% of new leads combined':'',failedIncFakeThisMo?'bad':'')}
-    </div></div>
+    </div></div>`}
   <div class="kpis">
     ${kpi('Converted',paidL.length,(L.length?Math.round(paidL.length/L.length*100):0)+'% of all leads','hi')}
     ${kpi('Quotations sent',quoted,'reached proposal stage')}
@@ -2620,7 +2838,7 @@ function vReports(){
     })()}
   </div>
   <div class="card" style="margin-top:12px"><h2>Pipeline board</h2><div class="kan">
-    ${(S.settings.stageOrder||OPEN_STAGES).concat(['Advance Paid']).map(st=>{const items=L.filter(l=>l.stage===st);
+    ${(S.settings.stageOrder||OPEN_STAGES).concat(['Advance Paid','Completed']).map(st=>{const items=L.filter(l=>l.stage===st);
       return `<div class="col"><h3><span>${st}</span><span>${items.length}</span></h3>
       ${items.slice(0,12).map(l=>`<div class="mini" data-lead="${l.id}"><b>${esc(l.name)}</b>
         <span class="eyebrow">${esc(leadSvcNames(l)||'—')}</span><div class="num">${leadDealValue(l.id)?short(leadDealValue(l.id)):''}</div></div>`).join('')||'<div class="eyebrow">empty</div>'}
@@ -2660,6 +2878,23 @@ function vReports(){
           :'<tr><td colspan="6"><div class="empty">No services quoted yet.</div></td></tr>';
       })()}
       </tbody></table></div></div>
+    <div class="card" style="grid-column:1/-1"><h2>Quotation denials &amp; rejections</h2>
+      <p class="sub" style="margin-bottom:8px">Quotations marked denied or rejected, filtered the same way as the rest of this page.</p>
+      ${(()=>{
+        const okIds=new Set(L.map(l=>l.id));
+        const quotesInScope=S.invoices.filter(i=>i.type==='proforma'&&(!i.leadId||okIds.has(i.leadId)));
+        const denied=quotesInScope.filter(i=>i.status==='denied');
+        const rate=quotesInScope.length?Math.round(denied.length/quotesInScope.length*100):0;
+        const byReason={};denied.forEach(i=>{const r=(i.denyReason||'Other').split(' — ')[0];byReason[r]=(byReason[r]||0)+1;});
+        const lostValue=denied.reduce((s,i)=>s+invTotals(i).total,0);
+        return `<div class="kpis">
+          ${kpi('Denied / rejected',denied.length,quotesInScope.length+' quotations sent',denied.length?'bad':'')}
+          ${kpi('Denial rate',rate+'%','of quotations sent',rate>25?'bad':rate>10?'warn':'')}
+          ${kpi('Value lost',short(lostValue),'in denied quotations','bad')}
+        </div>
+        ${Object.keys(byReason).length?`<div style="margin-top:12px">${barsHTML(Object.entries(byReason).sort((a,b)=>b[1]-a[1]))}</div>`:''}`;
+      })()}
+      </div>
     <div class="card" style="grid-column:1/-1"><h2>Lead source ROI</h2>
       <p class="sub" style="margin-bottom:8px">Revenue and conversion per source, with ad spend and ROI wherever a source has logged ad expenses attached to it (Setup → link a source's name to an expense category, or just compare cost against Google/Facebook Ads totals below).</p>
       <div class="tablewrap"><table><thead><tr><th>Source</th><th>Leads</th><th>Converted</th><th>Conv. rate</th><th>Revenue</th><th>Ad spend (all time)</th><th>ROI</th></tr></thead><tbody>
@@ -2691,6 +2926,49 @@ function vReports(){
 }
 
 /* ---------- services ---------- */
+let emailSendAsOptions=null,emailLogItems=null,emailLogLoading=false;
+async function loadSendAsOptions(){
+  if(emailSendAsOptions!==null||!S.settings.api)return;
+  try{const r=await api('listSendAs');if(r.ok)emailSendAsOptions=r.aliases||[];}catch(e){emailSendAsOptions=[];}
+}
+async function loadEmailLog(){
+  if(!S.settings.api)return;
+  emailLogLoading=true;
+  try{const r=await api('pullEmailLog');if(r.ok)emailLogItems=r.items||[];}catch(e){}
+  emailLogLoading=false;
+}
+function vEmail(){
+  if(!isAdmin())return `<div class="topbar"><div><h1>Email</h1></div></div><div class="card"><div class="empty"><b>Admin only</b>Email templates and sending settings are managed by an admin.</div></div>`;
+  return `<div class="topbar"><div><h1>Email</h1><p class="sub">Templates, auto-send rules, and a log of every invoice/quotation email actually sent.</p></div></div>
+  <div class="card"><h2>Auto-send</h2>
+    <label class="checkline"><input type="checkbox" id="autoSendInvToggle" ${S.settings.autoSendInvoiceEmail?'checked':''}> Automatically email a quotation/invoice to the client the first time it's raised</label>
+    <p class="sub" style="margin:4px 0 10px">Only fires once, on the very first save of a new document — never on a later edit. Can also be stopped on one specific invoice from its own page.</p>
+    <label class="checkline"><input type="checkbox" id="autoSendDueToggle" ${S.settings.autoSendDueReminders?'checked':''}> Automatically email a payment reminder the day an invoice becomes overdue</label>
+    <p class="sub" style="margin:4px 0 0">Sent once per invoice, ever. Needs a daily trigger set up in the Apps Script editor — see the README — this toggle only turns the behaviour on/off once that trigger exists.</p>
+  </div>
+  <div class="card" style="margin-top:12px"><h2>Sending options</h2>
+    <label class="f"><span>BCC every email to (internal copy)</span><input id="bccEmail" value="${esc(S.settings.bccEmailInternal||'')}" placeholder="you@getsetstartup.biz"></label>
+    <label class="f"><span>Send from</span>
+      <select id="fromAliasSel"><option value="">Default (the connected Google account)</option>
+        ${(emailSendAsOptions||[]).map(a=>`<option value="${esc(a)}"${S.settings.defaultFromAlias===a?' selected':''}>${esc(a)}</option>`).join('')}</select></label>
+    <p class="sub">Other addresses only appear here if they're already set up as a "Send mail as" alias on the connected Google account's own Gmail settings — this can't add a new one, only pick from what's already there.</p>
+  </div>
+  <div class="card" style="margin-top:12px"><h2>Templates</h2>
+    <p class="sub" style="margin-bottom:10px">Placeholders: <span class="mono">{name}</span> <span class="mono">{company}</span> <span class="mono">{invoiceNumber}</span> <span class="mono">{dueDate}</span> <span class="mono">{total}</span> <span class="mono">{paid}</span> <span class="mono">{balance}</span> <span class="mono">{upi_line}</span></p>
+    ${(S.settings.emailTemplates||[]).map((t,ix)=>`<div class="card" style="margin-bottom:8px;background:var(--bg)">
+      <div class="row"><input data-etmplabel="${ix}" value="${esc(t.label)}" placeholder="Template name" style="flex:1"></div>
+      <label class="f" style="margin-top:6px"><span>Subject</span><input data-etmpsubject="${ix}" value="${esc(t.subject||'')}"></label>
+      <label class="f"><span>Body</span><textarea data-etmpbody="${ix}" rows="5" style="font-size:13px">${esc(t.body||'')}</textarea></label></div>`).join('')}
+  </div>
+  <div class="card" style="margin-top:12px"><h2>Emails sent</h2>
+    ${emailLogItems===null?`<button class="btn ghost wide" id="loadEmailLogBtn">${emailLogLoading?'Loading…':'Load sent-email log'}</button>`
+      :emailLogItems.length?`<div class="tablewrap"><table><thead><tr><th>When</th><th>By</th><th>To</th><th>Subject</th><th>Invoice</th><th>Kind</th></tr></thead><tbody>
+        ${emailLogItems.slice(0,100).map(e=>`<tr><td class="eyebrow">${fmtDT(e.at)}</td><td>${esc(e.by==='auto'?'Automatic':nameOf(e.by))}</td>
+          <td>${esc(e.to)}</td><td>${esc(e.subject)}</td><td class="mono">${esc(e.invoiceNumber)}</td><td><span class="pill n">${esc(e.kind)}</span></td></tr>`).join('')}
+        </tbody></table></div>${emailLogItems.length>100?`<p class="sub" style="margin-top:8px">Showing latest 100 of ${emailLogItems.length}.</p>`:''}`
+      :'<div class="empty">No emails sent yet.</div>'}
+  </div>`;
+}
 function vServices(){
   const use={};S.leads.forEach(l=>(l.services||[]).forEach(s=>{const u=use[s.code]=use[s.code]||{n:0,sum:0};u.n++;u.sum+=Number(s.rate)||0;}));
   const ed=can('editServices');
@@ -2736,20 +3014,14 @@ function vSettings(){
       :`<p class="sub">This device is running in <b>local mode</b> — one password, no separate logins. To add team members with their own username and password, connect a Google Sheet first (below, under "Database"), sign back in, then this card will show a "+ Create a login" button.</p>
       <button class="btn ghost wide" id="chPass" style="margin-top:10px">Edit your name, photo &amp; password</button>`}</div>
   ${can('manageUsers')?`<div class="card" style="margin-top:12px"><h2>Money visibility for staff</h2>
-    <p class="sub" style="margin-bottom:10px">When turned on, staff logins lose the dashboard target, revenue figures, and the full Payments page entirely. They'll only see individual leads you've flagged (from the lead's page, "Flag for staff") — useful for having them chase a specific pending payment without seeing the business's overall numbers.</p>
     <label class="checkline"><input type="checkbox" id="hideMoneyToggle" ${S.settings.hideMoneyFromStaff?'checked':''}> Hide money figures from staff — they only see leads I flag</label>
   </div>
   <div class="card" style="margin-top:12px"><h2>Lead visibility for staff</h2>
-    <p class="sub" style="margin-bottom:10px">When turned on, staff only see leads, projects, invoices and payments assigned to them — not the whole team's. Unassigned leads stay visible to everyone so they can still be picked up. Admins always see everything regardless of this setting.</p>
     <label class="checkline"><input type="checkbox" id="restrictStaffToggle" ${S.settings.restrictStaffToOwn?'checked':''}> Staff can only see their own leads &amp; projects</label>
   </div>`:''}
   <div class="card" style="margin-top:12px"><h2>Message templates</h2>
-    <p class="sub" style="margin-bottom:10px">These show as quick-send buttons on every lead. Use <span class="mono">{name}</span>, <span class="mono">{me}</span>, <span class="mono">{company}</span>, <span class="mono">{svc_plain}</span>, <span class="mono">{svc_about}</span>, <span class="mono">{svc_for}</span>, <span class="mono">{fee_colon}</span>, <span class="mono">{balance}</span>, <span class="mono">{upi_line}</span> — each fills in automatically and disappears cleanly if it doesn't apply.</p>
-    ${(S.settings.msgTemplates||[]).map((t,ix)=>`<div class="card" style="margin-bottom:8px;background:var(--bg)">
-      <div class="row"><input data-tmplabel="${ix}" value="${esc(t.label)}" placeholder="Button label" style="flex:1">
-        <button class="btn sm ghost" data-tmplrm="${ix}" style="flex:0 0 auto">Remove</button></div>
-      <textarea data-tmplbody="${ix}" rows="2" style="margin-top:6px;font-size:13px">${esc(t.body)}</textarea></div>`).join('')}
-    <button class="btn ghost wide" id="addTmpl">+ Add template</button>
+    <p class="sub" style="margin-bottom:10px">${(S.settings.msgTemplates||[]).length} template${(S.settings.msgTemplates||[]).length===1?'':'s'} — these show as quick-send buttons on every lead.</p>
+    <button class="btn ghost wide" id="openTmplPage">Manage templates</button>
   </div>
   <div class="card" style="margin-top:12px"><h2>This month's target</h2>
     <div class="row"><label class="f"><span>Target for ${m}</span><input type="number" id="tgtMonth" value="${S.settings.targets[m]||''}" placeholder="e.g. 300000"></label>
@@ -2820,6 +3092,29 @@ function vSettings(){
       <button id="wipe" style="color:var(--bad)"><span class="ic">${AICON.trash}</span>Erase all</button></div>
     <p class="sub" style="margin-top:8px">"Everything" downloads four files at once: leads, quotations &amp; invoices, payments, and tickets.</p>
     <input type="file" id="fileIn" accept=".json" style="display:none"></div>`:''}`;
+}
+function editMsgTemplates(){
+  const draw=()=>{
+    layer(`<div class="dhead"><div style="flex:1"><div class="eyebrow">Setup</div><h1 style="font-size:19px">Message templates</h1>
+      <div class="sub">Quick-send buttons shown on every lead. Placeholders fill in automatically and disappear cleanly if they don't apply.</div></div><button class="x" data-close>✕</button></div>
+    <div class="dbody">
+      <div class="card"><p class="sub">Available placeholders: <span class="mono">{name}</span> <span class="mono">{me}</span> <span class="mono">{company}</span> <span class="mono">{svc_plain}</span> <span class="mono">{svc_about}</span> <span class="mono">{svc_for}</span> <span class="mono">{fee_colon}</span> <span class="mono">{balance}</span> <span class="mono">{upi_line}</span></p></div>
+      ${(S.settings.msgTemplates||[]).map((t,ix)=>`<div class="card" style="margin-bottom:8px">
+        <div class="row"><input data-tmplabel="${ix}" value="${esc(t.label)}" placeholder="Button label" style="flex:1">
+          <button class="btn sm ghost" data-tmplrm="${ix}" style="flex:0 0 auto">Remove</button></div>
+        <textarea data-tmplbody="${ix}" rows="3" style="margin-top:6px;font-size:13px">${esc(t.body)}</textarea></div>`).join('')}
+      <button class="btn ghost wide" id="addTmpl">+ Add template</button>
+    </div>`,()=>render());
+    document.querySelectorAll('[data-tmplabel]').forEach(el=>el.onchange=()=>{S.settings.msgTemplates[+el.dataset.tmplabel].label=el.value.trim()||'Template';save();});
+    document.querySelectorAll('[data-tmplbody]').forEach(el=>el.onchange=()=>{S.settings.msgTemplates[+el.dataset.tmplbody].body=el.value;save();});
+    document.querySelectorAll('[data-tmplrm]').forEach(el=>el.onclick=()=>{
+      if(!confirm('Remove this template?'))return;
+      S.settings.msgTemplates.splice(+el.dataset.tmplrm,1);save();draw();});
+    $('#addTmpl').onclick=()=>{
+      S.settings.msgTemplates.push({id:uid('tmpl'),label:'New template',body:'Hi {name}, '});
+      save();draw();};
+  };
+  draw();
 }
 function editSource(id){
   let src=id?S.sources.find(x=>x.id===id):{id:uid('src'),kind:'wix',name:'',url:''};
@@ -3028,11 +3323,11 @@ const sheetRows=()=>({
         (l.services||[]).map(s=>s.code+'@'+(s.rate||0)).join(' + '),leadFee(l),l.stage,isProject(l)?l.work:'',score(l),
         nameOf(l.assignedTo),(l.assignedAt||'').slice(0,10),nameOf(l.owner),l.createdAt.slice(0,10),
         isProject(l)?leadBalance(l.id):'',l.paymentIssue?(l.issueNote||'yes'):'',u?u.text:'',(l.statusUpdates||[]).length];})),
-  Invoices:[['Quotation ID','Number','Type','Billing company','Customer ID','Client name','Client email','Client business/company','Client phone','Owner','Date','Days pending','Due date','GST type','GST %','Taxable','GST amount','Total','Advance/Paid','Balance','Work status','Status']]
+  Invoices:[['Quotation ID','Number','Type','Billing company','Customer ID','Client name','Client email','Client business/company','Client phone','Owner','Date','Days pending','Due date','GST type','GST %','Taxable','GST amount','Total','Advance/Paid','Balance','Work status','Status','Denial reason']]
     .concat(S.invoices.map(i=>{const t=invTotals(i),l=leadOf(i.leadId),taxMode=i.taxMode||(i.gstOn===false?'none':(i.igst?'igst':'cgst'));
       return [i.quotationId||'',i.number,i.type==='tax'?'Invoice':'Quotation',coOf(i.companyId).name,l?l.customerId||'':'',l?l.name:'',l?l.email||'':'',l?l.company||'':'',l?l.phone||'':'',
         l?nameOf(l.assignedTo):'',i.date,days(i.date),i.dueDate||'',taxMode,taxMode==='none'?0:i.gstRate,
-        t.base,t.tax,t.total,paidOn(i.id),dueOn(i),l?(isProject(l)?l.work:''):'',invState(i)];})),
+        t.base,t.tax,t.total,paidOn(i.id),dueOn(i),l?(isProject(l)?l.work:''):'',invState(i),i.status==='denied'?(i.denyReason||''):''];})),
   Payments:[['Date','Customer ID','Client','Invoice','Kind','Mode','Reference','Amount','Recorded by']]
     .concat(S.payments.map(p=>{const i=S.invoices.find(x=>x.id===p.invoiceId),l=leadOf(p.leadId);
       return [p.date,l?l.customerId||'':'',l?l.name:'',i?i.number:'',p.kind||'',p.mode,p.ref||'',Number(p.amount)||0,nameOf(p.by)];})),
@@ -3079,7 +3374,9 @@ document.addEventListener('click',async e=>{
 
 /* ---------- wiring ---------- */
 function wire(){
-  document.querySelectorAll('[data-lead]').forEach(el=>el.onclick=e=>{e.stopPropagation();openLead(el.dataset.lead);});
+  document.querySelectorAll('[data-lead]').forEach(el=>el.onclick=e=>{e.stopPropagation();
+    if(bulkMode){const id=el.dataset.lead;bulkSelected.has(id)?bulkSelected.delete(id):bulkSelected.add(id);render();return;}
+    openLead(el.dataset.lead);});
   document.querySelectorAll('[data-inv]').forEach(el=>el.onclick=()=>editInvoice(el.dataset.inv));
   document.querySelectorAll('[data-tk]').forEach(el=>el.onclick=()=>editTicket(el.dataset.tk));
   document.querySelectorAll('[data-newtk]').forEach(el=>el.onclick=e=>{e.stopPropagation();editTicket(null,el.dataset.newtk);});
@@ -3212,6 +3509,32 @@ function wire(){
     $('#fpriority').onclick=()=>{filt.priority=!filt.priority;render();};
     const fu=$('#funcalled');fu&&(fu.onclick=()=>{filt.uncalled=!filt.uncalled;if(filt.uncalled)filt.stage='';render();});
   }
+  const tb=$('#toggleBulk');tb&&(tb.onclick=()=>{bulkMode=!bulkMode;bulkSelected.clear();render();});
+  document.querySelectorAll('[data-bulkpick]').forEach(el=>el.onchange=e=>{e.stopPropagation();
+    const id=el.dataset.bulkpick;el.checked?bulkSelected.add(id):bulkSelected.delete(id);
+    const card=el.closest('.lead');if(card)card.classList.toggle('bulkpicked',el.checked);});
+  const bsa=$('#bulkSelectAll');bsa&&(bsa.onclick=()=>{leadRows('leads').forEach(l=>bulkSelected.add(l.id));render();});
+  const bsn=$('#bulkSelectNone');bsn&&(bsn.onclick=()=>{bulkSelected.clear();render();});
+  const bAssign=$('#bulkAssign');bAssign&&(bAssign.onchange=()=>{
+    const v=bAssign.value;if(!v||!bulkSelected.size)return;
+    const target=v==='__none__'?'':v;
+    bulkSelected.forEach(id=>{const l=leadOf(id);if(!l)return;
+      l.assignedTo=target;l.assignedBy=me.username;l.assignedAt=new Date().toISOString();});
+    audit('Bulk-assigned '+bulkSelected.size+' leads to '+(target?nameOf(target):'nobody'));
+    save();toast(bulkSelected.size+' leads assigned');bulkSelected.clear();bulkMode=false;render();});
+  const bTag=$('#bulkTag');bTag&&(bTag.onchange=()=>{
+    const v=bTag.value;if(!v||!bulkSelected.size)return;
+    bulkSelected.forEach(id=>{const l=leadOf(id);if(l)l.tag=v;});
+    audit('Bulk-tagged '+bulkSelected.size+' leads as '+v);
+    save();toast(bulkSelected.size+' leads tagged '+v);bulkSelected.clear();bulkMode=false;render();});
+  const bPOn=$('#bulkPriorityOn');bPOn&&(bPOn.onclick=()=>{if(!bulkSelected.size)return toast('Select some leads first');
+    bulkSelected.forEach(id=>{const l=leadOf(id);if(l)l.priority=true;});
+    audit('Bulk-marked '+bulkSelected.size+' leads as priority');
+    save();toast(bulkSelected.size+' leads marked priority');bulkSelected.clear();bulkMode=false;render();});
+  const bPOff=$('#bulkPriorityOff');bPOff&&(bPOff.onclick=()=>{if(!bulkSelected.size)return toast('Select some leads first');
+    bulkSelected.forEach(id=>{const l=leadOf(id);if(l)l.priority=false;});
+    audit('Bulk-unmarked priority on '+bulkSelected.size+' leads');
+    save();toast('Priority removed');bulkSelected.clear();bulkMode=false;render();});
   const nt=$('#newTk');nt&&(nt.onclick=()=>editTicket(null,''));
   const ni=$('#newInv');ni&&(ni.onclick=()=>editInvoice(null,{leadId:S.leads[0]?S.leads[0].id:'',type:'tax'}));
   const np=$('#newPf');np&&(np.onclick=()=>editInvoice(null,{leadId:S.leads[0]?S.leads[0].id:'',type:'proforma'}));
@@ -3230,6 +3553,8 @@ function wire(){
   const ivfrom=$('#ivfrom');ivfrom&&(ivfrom.onchange=e=>{invFilt2.from=e.target.value;render();});
   const ivto=$('#ivto');ivto&&(ivto.onchange=e=>{invFilt2.to=e.target.value;render();});
   document.querySelectorAll('[data-dlinv]').forEach(b=>b.onclick=e=>{e.stopPropagation();printInvoice(b.dataset.dlinv);});
+  document.querySelectorAll('[data-denyinv]').forEach(b=>b.onclick=e=>{e.stopPropagation();denyQuotation(b.dataset.denyinv);});
+  document.querySelectorAll('[data-undenyinv]').forEach(b=>b.onclick=e=>{e.stopPropagation();undenyQuotation(b.dataset.undenyinv);});
   const ep=$('#expPay');ep&&(ep.onclick=()=>download('gss-payments.csv',toCSV(sheetRows().Payments)));
   if($('#addSvcCat')){
     $('#addSvcCat').onclick=()=>{S.services.push({code:'NEW',name:'New service',rate:0});save();render();};
@@ -3339,4 +3664,4 @@ function newLead(o){
     createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),lastTouch:''},o);
 }
 </script>
-</body></html>
+</body></html>  
