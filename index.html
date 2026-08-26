@@ -670,6 +670,7 @@ function migrate(){
   if(S.settings.hideMoneyFromStaff===undefined)S.settings.hideMoneyFromStaff=false;
   if(S.settings.restrictStaffToOwn===undefined)S.settings.restrictStaffToOwn=false;
   S.settings.tagBundles=S.settings.tagBundles||[];
+  S.settings.removedTags=S.settings.removedTags||[];
   if(S.settings.autoSendInvoiceEmail===undefined)S.settings.autoSendInvoiceEmail=true;
   if(S.settings.autoSendDueReminders===undefined)S.settings.autoSendDueReminders=false;
   S.settings.bccEmailInternal=S.settings.bccEmailInternal||'';
@@ -698,7 +699,7 @@ function migrate(){
     if(!l.stage)l.stage={'Proposal Sent':'Quotation Sent','Negotiating':'Interested','Won':'Advance Paid'}[l.status]||l.status||'New';
     if(l.stage==='Advance Paid'&&l.work==='Not started')l.work='In progress';
     if(!l.tag)l.tag='GSS';
-    if(l.tag&&!S.tags.includes(l.tag))S.tags.push(l.tag);
+    if(l.tag&&!S.tags.includes(l.tag)&&!(S.settings.removedTags||[]).includes(l.tag))S.tags.push(l.tag);
     if(!l.assignedTo){l.assignedTo=l.owner||'';l.assignedBy=l.owner||'';l.assignedAt=l.assignedAt||l.createdAt;}
   });
   // One-time cleanup: any lead still carrying an old-format "CUSTxxxx" customer ID gets
@@ -3577,8 +3578,18 @@ function wire(){
   if($('#addSvcCat')){
     $('#addSvcCat').onclick=()=>{S.services.push({code:'NEW',name:'New service',rate:0});save();render();};
     $('#addTag').onclick=()=>{const v=$('#newTag').value.trim().toUpperCase();if(!v)return;
-      if(!S.tags.includes(v))S.tags.push(v);save();render();};
-    document.querySelectorAll('[data-rmtag]').forEach(el=>el.onclick=()=>{S.tags.splice(+el.dataset.rmtag,1);save();render();});
+      if(!S.tags.includes(v))S.tags.push(v);
+      if(S.settings.removedTags)S.settings.removedTags=S.settings.removedTags.filter(t=>t!==v);
+      save();render();};
+    document.querySelectorAll('[data-rmtag]').forEach(el=>el.onclick=()=>{
+      const removed=S.tags[+el.dataset.rmtag];
+      S.tags.splice(+el.dataset.rmtag,1);
+      // Remember this was deliberately deleted, not just "not in the list yet" — otherwise
+      // the next sync/refresh would silently re-add it the moment it noticed any lead still
+      // carrying that tag, which is exactly the bug this was causing.
+      S.settings.removedTags=S.settings.removedTags||[];
+      if(removed&&!S.settings.removedTags.includes(removed))S.settings.removedTags.push(removed);
+      audit('Removed tag: '+removed);save();render();});
     document.querySelectorAll('[data-rmtagbundle]').forEach(el=>el.onclick=()=>{
       S.settings.tagBundles.splice(+el.dataset.rmtagbundle,1);audit('Removed tag bundle');save();render();});
     const atb=$('#addTagBundle');atb&&(atb.onclick=()=>{
