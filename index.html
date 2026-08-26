@@ -621,28 +621,31 @@ function audit(what){
   migrate();applyBrand();
   if(S.settings.api&&cache.tok()){
     const keep=S.settings.api;
-    // CRITICAL: never push local data over the server just because a flag says "unsynced" —
-    // that flag only means a previous push attempt didn't get a confirmed response, which
-    // happens routinely (tab closed, phone locked, weak signal) and is NOT proof the local
-    // copy is newer or correct. Pushing blindly here was the actual cause of stale data
-    // silently overwriting the server: pull first, compare real timestamps, and only push
-    // the local copy if it is genuinely newer than what the server already has.
+    // A timestamp alone can never prove which copy is actually correct — two devices' clocks
+    // can disagree, and a slightly newer server timestamp says nothing about whether the
+    // server actually contains a specific edit this device just made. That's what was erasing
+    // real edits (lead email/address/GSTIN, etc.) on refresh: this device's own unsynced
+    // change was getting discarded because the server's clock looked newer, even when the
+    // server didn't actually have the edit.
+    // The only safe rule: if THIS device has an unsynced change sitting locally, that change
+    // must be pushed FIRST, always — never compared against or replaced by a pull. Only pull
+    // and adopt the server's copy once this device has confirmed nothing of its own is pending.
     try{
-      const r=await api('pull');
-      if(r.ok){
-        me=cache.who()||{name:'Signed in',username:'user',role:'staff'};
-        const serverTime=r.data&&r.updatedAt?new Date(r.updatedAt).getTime():0;
-        const localTime=S.updatedAt?new Date(S.updatedAt).getTime():0;
-        if(r.data&&serverTime>=localTime){
-          // Server copy is at least as new — trust it, this device's unsynced flag was stale.
-          S=Object.assign(DEFAULTS(),r.data);S.settings=Object.assign(DEFAULTS().settings,r.data.settings||{});
-          S.settings.api=keep;migrate();cache.unsynced(false);cache.set(S);
-        }else if(cache.unsynced()){
-          // Local copy is genuinely newer than the server AND has unconfirmed changes —
-          // now it's safe to push, because we've actually verified it, not just assumed it.
-          try{await api('push',{data:S,tables:sheetRows()});cache.unsynced(false);}catch(e){}
+      if(cache.unsynced()){
+        try{await api('push',{data:S,tables:sheetRows()});cache.unsynced(false);}catch(e){/* couldn't push — leave local as-is, don't touch it with a pull below */}
+      }
+      if(!cache.unsynced()){
+        const r=await api('pull');
+        if(r.ok){
+          me=cache.who()||{name:'Signed in',username:'user',role:'staff'};
+          if(r.data){
+            S=Object.assign(DEFAULTS(),r.data);S.settings=Object.assign(DEFAULTS().settings,r.data.settings||{});
+            S.settings.api=keep;migrate();cache.set(S);
+          }
+          syncState='ok';applyBrand();loadTeam();
         }
-        syncState='ok';applyBrand();loadTeam();
+      }else{
+        me=cache.who()||{name:'Signed in',username:'user',role:'staff'};
       }
     }catch(e){}
   }
@@ -777,23 +780,19 @@ async function signIn(){
     // person stare at a blank/loading screen for the full round-trip chain below.
     setDefaultFilter();draw();
     setStatus('');
-    // Same rule as boot: pull first and compare real timestamps before ever pushing local
-    // data. A stale "unsynced" flag from a previous session must never blindly overwrite
-    // whatever the server actually has now.
-    const keep=S.settings.api,p=await api('pull');
-    const serverTime=p.data&&p.updatedAt?new Date(p.updatedAt).getTime():0;
-    const localTime=S.updatedAt?new Date(S.updatedAt).getTime():0;
-    // The app became interactive the moment draw() ran above, so the person may already have
-    // made an edit while this pull was in flight. Re-check for that before ever overwriting S —
-    // same fix as backgroundRefresh, same reasoning: a pull that started before an edit must
-    // never silently erase it just because it finishes after.
+    const keep=S.settings.api;
+    // Same rule as boot, no timestamp comparison at all: if this device has an unsynced
+    // change, push it first, unconditionally — a clock alone can never prove which copy
+    // actually contains a specific edit, and comparing timestamps was exactly what was
+    // silently erasing real edits (lead email/address/GSTIN, etc.) on refresh or re-login.
     if(pendingPush||pushInFlight||cache.unsynced()){
-      if(p.ok&&p.data&&cache.unsynced()){/* local now has its own unconfirmed change — let the normal push cycle handle it, don't touch S here */}
-    }else if(p.ok&&p.data&&serverTime>=localTime){
-      S=Object.assign(DEFAULTS(),p.data);S.settings=Object.assign(DEFAULTS().settings,p.data.settings||{});
-      S.settings.api=keep;migrate();cache.unsynced(false);
-    }else if(cache.unsynced()){
       try{await api('push',{data:S,tables:sheetRows()});cache.unsynced(false);}catch(e){}
+    }else{
+      const p=await api('pull');
+      if(p.ok&&p.data){
+        S=Object.assign(DEFAULTS(),p.data);S.settings=Object.assign(DEFAULTS().settings,p.data.settings||{});
+        S.settings.api=keep;migrate();
+      }
     }
     syncState='ok';cache.set(S);applyBrand();
     audit('Signed in');save();render();checkInbox();
