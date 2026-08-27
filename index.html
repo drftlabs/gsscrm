@@ -418,12 +418,24 @@ const DEFAULTS=()=>({
 let S=DEFAULTS(),route='dash',me=null,syncState='off',lastSync='';
 
 /* ---------- backend ---------- */
+const EXPECTED_BACKEND_VERSION=5;
+let backendVersionMismatch=false;
 async function api(action,payload){
   if(!S.settings.api)throw new Error('No backend URL');
   const r=await fetch(S.settings.api,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},
     body:JSON.stringify(Object.assign({action,token:cache.tok()},payload||{})),redirect:'follow'});
   const j=await r.json();
   if(j.authRequired){me=null;cache.tok(null);draw();throw new Error(j.error);}
+  // If the deployed Apps Script is older than what this app expects, say so unmistakably
+  // instead of letting individual actions fail with confusing "Unknown action" errors —
+  // this is the single most common cause of "nothing is saving": the code was updated here
+  // but Code.gs was never actually redeployed as a new version on the live URL.
+  if(j.backendVersion!==undefined&&j.backendVersion!==EXPECTED_BACKEND_VERSION){
+    backendVersionMismatch=true;
+    if(route)paintSync();
+  }else if(j.backendVersion===EXPECTED_BACKEND_VERSION){
+    backendVersionMismatch=false;
+  }
   return j;
 }
 let pushTimer=null,pushRetryTimer=null,pendingPush=false,pushAttempts=0,pushInFlight=false,pushQueuedAgain=false;
@@ -447,9 +459,9 @@ async function pushNow(){
   pushInFlight=true;
   try{syncState='busy';paintSync();
     const r=await api('push',{data:S,tables:sheetRows()});
-    if(r.ok){syncState='ok';pendingPush=false;pushAttempts=0;cache.unsynced(false);lastSync=new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});}
+    if(r.ok){syncState='ok';pendingPush=false;pushAttempts=0;cache.unsynced(false);lastSyncError='';lastSync=new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});}
     else{scheduleRetry(r.error||'Sync failed');}
-  }catch(e){scheduleRetry('Could not reach the backend');}
+  }catch(e){scheduleRetry('Could not reach the backend: '+(e&&e.message?e.message:e));}
   pushInFlight=false;
   paintSync();
   if(pushQueuedAgain){pushQueuedAgain=false;pushNow();} // one more change came in while we were pushing — send it now
@@ -458,13 +470,14 @@ async function pushNow(){
 // disappearing: an unsynced change sat only in this browser's storage, and the next
 // sign-in anywhere (which does a full pull-and-replace) overwrote it for good. Retrying
 // with backoff, and flushing before the tab closes or backgrounds, closes that gap.
+let lastSyncError='';
 function scheduleRetry(msg){
-  syncState='err';pushAttempts++;
+  syncState='err';pushAttempts++;lastSyncError=msg||'';
   if(pushAttempts<=6){ // back off: 3s, 6s, 12s, 24s, 48s, 96s, then stop auto-retrying but stay flagged
     clearTimeout(pushRetryTimer);
     pushRetryTimer=setTimeout(pushNow,Math.min(96000,3000*Math.pow(2,pushAttempts-1)));
   }else{
-    toast('Could not sync — tap the sync status to retry. Your changes are safe on this device.');
+    toast('Could not sync: '+(msg||'unknown error')+' — tap the sync status to retry.');
   }
 }
 // beforeunload/fetch cannot be relied on for mobile: the moment a phone browser backgrounds
@@ -496,6 +509,7 @@ window.addEventListener('beforeunload',flushPendingSync);
 window.addEventListener('pagehide',flushPendingSync);
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')flushPendingSync();});
 function paintSync(){const el=$('#syncBadge');if(!el)return;
+  if(backendVersionMismatch){el.innerHTML=`<span class="dot err"></span>Backend outdated — redeploy needed`;return;}
   const m={off:['off','This device only'],pending:['off','Saving…'],busy:['off','Syncing…'],ok:['','Synced '+lastSync],err:['err','Sync failed — tap to retry']}[syncState];
   el.innerHTML=`<span class="dot ${m[0]}"></span>${m[1]}`;}
 let inbox=[];
@@ -539,10 +553,16 @@ function inboxBanner(){
     </div></div>`;
 }
 function syncWarningBanner(){
+  if(backendVersionMismatch){
+    return `<div class="card" style="border-left:3px solid var(--bad);margin-bottom:12px;background:linear-gradient(135deg,#fff,var(--bad-soft))">
+      <b style="color:var(--bad)">The backend needs to be redeployed</b>
+      <div class="sub" style="margin-top:4px">This app expects a newer Code.gs than what's currently live. Nothing new will save correctly until this is fixed: open the Apps Script editor, paste in the latest Code.gs, save, then <b>Deploy → Manage deployments → click the pencil icon → set Version to "New version" → Deploy</b>. Just saving the file is not enough — that step is required every time.</div>
+    </div>`;
+  }
   if(syncState!=='err'||!S.settings.api)return '';
   return `<div class="card" style="border-left:3px solid var(--bad);margin-bottom:12px;background:linear-gradient(135deg,#fff,var(--bad-soft))">
     <div class="row" style="align-items:center">
-      <div><b style="color:var(--bad)">Not synced to the server</b><div class="sub">Your changes are saved on this device, but haven't reached the shared Sheet yet. Don't sign out or close the tab until this clears.</div></div>
+      <div><b style="color:var(--bad)">Not synced to the server</b><div class="sub">${esc(lastSyncError||'Your changes are saved on this device, but haven\u2019t reached the shared Sheet yet. Don\u2019t sign out or close the tab until this clears.')}</div></div>
       <button class="btn" id="retrySyncBanner" style="flex:0 0 auto">Retry now</button>
     </div></div>`;
 }
