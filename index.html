@@ -3518,7 +3518,7 @@ function wire(){
       if(!keep.length)return toast('Nothing selected');
       const src=$('#pasteSource').value,ass=$('#pasteAssign').value;
       keep.forEach(p=>{
-        if(p.tag&&!S.tags.includes(p.tag))S.tags.push(p.tag);
+        if(p.tag&&!S.tags.includes(p.tag)&&!(S.settings.removedTags||[]).includes(p.tag))S.tags.push(p.tag);
         const l=newLead({name:p.name,phone:p.phone,email:p.email,company:p.company,city:p.city,tag:p.tag||'GSS',
           source:p.csv?'CSV import':src,services:splitFee(p.codes,p.fee,p.rates),notes:p.msg,stage:p.stage||'New'});
         l.assignedTo=ass;l.assignedBy=me.username;l.assignedAt=new Date().toISOString();
@@ -3713,4 +3713,4 @@ function newLead(o){
     createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),lastTouch:''},o);
 }
 </script>
-</body></html>
+</body></html>  
