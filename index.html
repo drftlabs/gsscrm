@@ -416,6 +416,61 @@ const DEFAULTS=()=>({
     ]}
 });
 let S=DEFAULTS(),route='dash',me=null,syncState='off',lastSync='';
+// Merges two copies of the data by ID instead of one wholesale replacing the other. This is
+// the actual fix for the real bug: two devices each hold their own full copy of S, and every
+// sync used to just push/pull the ENTIRE blob — so if device A added a quotation and then
+// device B (open at the same time, even just sitting idle) saved anything at all, B's push
+// carried its own older snapshot WITHOUT A's quotation and silently erased it. Nothing was
+// actually broken in any single save — the architecture itself had no way for two devices'
+// concurrent changes to both survive. This merges record-by-record (matched by id) instead,
+// keeping whichever copy of each individual record was touched more recently, so a lead added
+// on one device and a notice added on another can both survive regardless of sync order.
+function mergeById(localArr,remoteArr,timeField){
+  timeField=timeField||'updatedAt';
+  const byId={};
+  (remoteArr||[]).forEach(r=>{if(r&&r.id)byId[r.id]=r;});
+  (localArr||[]).forEach(l=>{
+    if(!l||!l.id)return;
+    const existing=byId[l.id];
+    if(!existing){byId[l.id]=l;return;} // only exists locally — keep it, don't let a pull erase it
+    // exists on both — keep whichever was actually touched more recently
+    const timeOf=r=>r[timeField]||r.updatedAt||r.savedAt||r.at||r.createdAt||r.date||0;
+    const lt=new Date(timeOf(l)).getTime();
+    const rt=new Date(timeOf(existing)).getTime();
+    if(lt>=rt)byId[l.id]=l;
+  });
+  return Object.values(byId);
+}
+// Same idea for simple string arrays like tags — union of both, minus anything explicitly
+// deleted (tracked in settings.removedTags), so a tag added on one device and a deletion made
+// on another both take effect rather than one silently winning by sync order.
+function mergeTags(localTags,remoteTags,removed){
+  const removedSet=new Set(removed||[]);
+  const all=new Set([...(localTags||[]),...(remoteTags||[])]);
+  removedSet.forEach(t=>all.delete(t));
+  return [...all];
+}
+function mergeServerData(remote){
+  // remote is the server's data; S is still this device's current local copy at this point.
+  const merged=Object.assign({},remote);
+  merged.leads=mergeById(S.leads,remote.leads,'updatedAt');
+  merged.invoices=mergeById(S.invoices,remote.invoices,'savedAt');
+  merged.payments=mergeById(S.payments,remote.payments);
+  merged.tickets=mergeById(S.tickets,remote.tickets);
+  merged.notices=mergeById(S.notices,remote.notices,'at');
+  merged.expenses=mergeById(S.expenses,remote.expenses);
+  merged.sources=mergeById(S.sources,remote.sources);
+  const removedTags=[...new Set([...(S.settings&&S.settings.removedTags||[]),...(remote.settings&&remote.settings.removedTags||[])])];
+  merged.tags=mergeTags(S.tags,remote.tags,removedTags);
+  merged.settings=Object.assign({},remote.settings,{removedTags});
+  // audit log: keep both, de-duplicated, most recent first — this one is append-only by nature
+  const seenAudit=new Set();
+  merged.audit=[...(S.audit||[]),...(remote.audit||[])].filter(a=>{
+    const k=a.at+'|'+a.by+'|'+a.what;
+    if(seenAudit.has(k))return false;seenAudit.add(k);return true;
+  }).sort((a,b)=>a.at<b.at?-1:1).slice(-900);
+  return merged;
+}
 
 /* ---------- backend ---------- */
 const EXPECTED_BACKEND_VERSION=5;
@@ -535,12 +590,14 @@ async function backgroundRefresh(){
     if(pendingPush||pushInFlight||cache.unsynced())return;
     if($('#layer')&&$('#layer').firstChild)return;
     if(p.ok&&p.data){
-      const before=JSON.stringify({l:S.leads.length,i:S.invoices.length,p:S.payments.length});
-      S=Object.assign(DEFAULTS(),p.data);S.settings=Object.assign(DEFAULTS().settings,p.data.settings||{});
+      const before=JSON.stringify({l:S.leads.length,i:S.invoices.length,p:S.payments.length,n:(S.notices||[]).length});
+      const merged=mergeServerData(p.data);
+      S=Object.assign(DEFAULTS(),merged);S.settings=Object.assign(DEFAULTS().settings,merged.settings||{});
       S.settings.api=keep;migrate();cache.set(S);
-      const after=JSON.stringify({l:S.leads.length,i:S.invoices.length,p:S.payments.length});
+      const after=JSON.stringify({l:S.leads.length,i:S.invoices.length,p:S.payments.length,n:(S.notices||[]).length});
       syncState='ok';paintSync();
       if(before!==after&&route!=='settings')render(); // something changed elsewhere — refresh what's on screen
+      if(before!==after)save(); // the merge itself is a local change (recovered something the server didn't have) — push it back
     }
   }catch(e){}
 }
@@ -659,7 +716,12 @@ function audit(what){
         if(r.ok){
           me=cache.who()||{name:'Signed in',username:'user',role:'staff'};
           if(r.data){
-            S=Object.assign(DEFAULTS(),r.data);S.settings=Object.assign(DEFAULTS().settings,r.data.settings||{});
+            // Merge, don't replace — this is exactly the "opens on another device, status
+            // changes" scenario: this device might be signing in fresh with nothing local of
+            // its own, but if it has ANYTHING cached locally that the server doesn't know
+            // about yet, a plain replace would silently erase it the moment this device loads.
+            const merged=mergeServerData(r.data);
+            S=Object.assign(DEFAULTS(),merged);S.settings=Object.assign(DEFAULTS().settings,merged.settings||{});
             S.settings.api=keep;migrate();cache.set(S);
           }
           syncState='ok';applyBrand();loadTeam();
@@ -811,7 +873,8 @@ async function signIn(){
     }else{
       const p=await api('pull');
       if(p.ok&&p.data){
-        S=Object.assign(DEFAULTS(),p.data);S.settings=Object.assign(DEFAULTS().settings,p.data.settings||{});
+        const merged=mergeServerData(p.data);
+        S=Object.assign(DEFAULTS(),merged);S.settings=Object.assign(DEFAULTS().settings,merged.settings||{});
         S.settings.api=keep;migrate();
       }
     }
@@ -2081,6 +2144,7 @@ function editInvoice(id,seed){
     document.querySelectorAll('[data-annex]').forEach(b=>b.onclick=()=>{pull();editAnnexure(inv,+b.dataset.annex,draw2);});
     const ec=document.querySelector('[data-editco]');ec&&(ec.onclick=e=>{e.preventDefault();pull();editCompany(co.id,()=>draw2());});
     const commit=()=>{pull();
+      inv.savedAt=new Date().toISOString(); // reliable "last touched" stamp for cross-device merging, separate from the user-editable document date
       const isFirstSave=inv.number.startsWith('(');
       if(isFirstSave){const co2=coOf(inv.companyId),nn=nextNumber(co2,inv.type,inv.date);inv.number=nn.number;S.seq[nn.key]=nn.n;}
       if(!S.invoices.find(i=>i.id===inv.id)){S.invoices.push(inv);audit('Raised '+inv.number);}
