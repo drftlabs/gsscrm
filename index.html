@@ -189,6 +189,11 @@ tr.click:hover{background:linear-gradient(90deg,var(--brand-soft),#FAF8FD);curso
 .bar .t i{display:block;height:100%;background:linear-gradient(90deg,var(--brand),color-mix(in srgb,var(--brand) 60%,var(--accent)));background:linear-gradient(90deg,var(--brand),#8A3FD8);border-radius:99px}
 .bar .val{font-family:var(--mono);font-size:12px;text-align:right;color:var(--muted)}
 .spark{width:100%;height:132px}
+.linelegendrow{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.linelegend{display:inline-flex;align-items:center;gap:5px;background:#fff;border:1px solid var(--line);border-radius:99px;padding:4px 10px;font-size:11.5px;font-weight:600;cursor:pointer;color:var(--ink)}
+.linelegend .dot{width:8px;height:8px;border-radius:99px;display:inline-block}
+.linelegend.off{opacity:.4;background:var(--bg)}
+.linelegend.off .dot{background:var(--muted)!important}
 .legend{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-top:6px}
 .funnel{display:grid;gap:6px}
 .funnel .f{display:grid;grid-template-columns:132px 1fr;gap:9px;align-items:center;font-size:13px}
@@ -390,6 +395,7 @@ const DEFAULTS=()=>({
   services:CATALOG.map(([code,name,rate])=>({code,name,rate})),
   companies:DEFAULT_COMPANIES(),
   notices:[],
+  checklists:[],
   settings:{api:'https://script.google.com/macros/s/AKfycbz-IkoDNv4iZbdYVBmjWIfmANROWoGUBVSyQr-MfonUIQ1CxUrygbr3B7FmAeH4YsMivw/exec',sheetUrl:'https://docs.google.com/spreadsheets/d/1BnjBv5c2x2bdKv50d985D_GVTU4NnEen_6MBKDn_-dY/edit',
     gstRate:18,dueDays:7,ownerName:'',ownerEmail:'',brand:PRESETS['Get Set Startup'],localHash:'',localSalt:'',localName:'Admin',
     perms:{},targets:{},defaultTarget:0,defaultTerms:'1) Advance 50%\\n2) 25% on first draft, Balance 25% on completion\\n3) Delivery in approx. 10 working days(s)\\n4) 6 Months Support & Revision Period',
@@ -458,6 +464,7 @@ function mergeServerData(remote){
   merged.payments=mergeById(S.payments,remote.payments);
   merged.tickets=mergeById(S.tickets,remote.tickets);
   merged.notices=mergeById(S.notices,remote.notices,'at');
+  merged.checklists=mergeById(S.checklists,remote.checklists,'updatedAt');
   merged.expenses=mergeById(S.expenses,remote.expenses);
   merged.sources=mergeById(S.sources,remote.sources);
   const removedTags=[...new Set([...(S.settings&&S.settings.removedTags||[]),...(remote.settings&&remote.settings.removedTags||[])])];
@@ -473,7 +480,7 @@ function mergeServerData(remote){
 }
 
 /* ---------- backend ---------- */
-const EXPECTED_BACKEND_VERSION=5;
+const EXPECTED_BACKEND_VERSION=6;
 let backendVersionMismatch=false;
 async function api(action,payload){
   if(!S.settings.api)throw new Error('No backend URL');
@@ -745,6 +752,7 @@ function migrate(){
   S.expenses=S.expenses||[];
   S.sources=S.sources&&S.sources.length?S.sources:[{id:uid('src'),kind:'sheet',name:'Primary Google Sheet',url:S.settings.sheetUrl||''}];
   S.notices=S.notices||[];
+  S.checklists=S.checklists||[];
   S.settings.stageOrder=S.settings.stageOrder&&S.settings.stageOrder.length?S.settings.stageOrder:OPEN_STAGES.slice();
   S.settings.customStages=S.settings.customStages||[];
   S.settings.logTypes=S.settings.logTypes&&S.settings.logTypes.length?S.settings.logTypes:['Call','WhatsApp','Email','Meeting','Note'];
@@ -993,7 +1001,7 @@ function render(){
   const myDueToday=S.leads.filter(l=>l.assignedTo===me.username&&l.followUp&&l.followUp<=today()&&!DEAD.includes(l.stage)).length;
   const counts={leads:S.leads.filter(l=>OPEN_STAGES.includes(l.stage)).length,
     projects:S.leads.filter(l=>isProject(l)&&l.stage!=='Completed').length,
-    team:myDueToday||'',tickets:openTk||'',invoices:openInvoices().length,money:alerts?'!':''};
+    team:myDueToday||'',tickets:openTk||'',invoices:S.invoices.filter(i=>i.type==='proforma'&&i.status!=='cancelled'&&i.status!=='denied'&&paidOn(i.id)<=0).length,money:alerts?'!':''};
   $('#app').innerHTML=`<div class="shell">
   <button class="hamburger" id="hamburger" aria-label="Open menu"><span></span><span></span><span></span></button>
   <div class="scrim mobonly" id="sideScrim" style="display:none"></div>
@@ -1019,6 +1027,17 @@ function render(){
   const rt=$('#repTo');rt&&(rt.onchange=e=>{reportsFilt.to=e.target.value;render();});
   const rtag=$('#repTag');rtag&&(rtag.onchange=e=>{reportsFilt.tag=e.target.value;render();});
   const rclear=$('#repClear');rclear&&(rclear.onclick=()=>{reportsFilt={from:'',to:'',tag:''};render();});
+  const fdk=$('#fakeDrilldownKpi');fdk&&(fdk.onclick=()=>{
+    let L=staffLocked()?visibleLeads():S.leads;
+    if(reportsFilt.from)L=L.filter(l=>l.createdAt.slice(0,10)>=reportsFilt.from);
+    if(reportsFilt.to)L=L.filter(l=>l.createdAt.slice(0,10)<=reportsFilt.to);
+    if(reportsFilt.tag)L=L.filter(l=>l.tag===reportsFilt.tag);
+    openFakeDrilldown(L);});
+  document.querySelectorAll('[data-linekey]').forEach(el=>el.onclick=()=>{
+    const k=el.dataset.linekey;
+    trendChartHidden.has(k)?trendChartHidden.delete(k):trendChartHidden.add(k);
+    render();});
+  const tsf=$('#trendSvcFilter');tsf&&(tsf.onchange=e=>{trendChartService=e.target.value;render();});
   document.querySelectorAll('[data-coexpand]').forEach(b=>b.onclick=()=>{moneyCoOpen[b.dataset.coexpand]=!moneyCoOpen[b.dataset.coexpand];render();});
   const custq=$('#custq');custq&&(custq.oninput=e=>{custFilt.q=e.target.value;});
   const hmt=$('#hideMoneyToggle');hmt&&(hmt.onchange=()=>{S.settings.hideMoneyFromStaff=hmt.checked;
@@ -1111,6 +1130,31 @@ function spark(labels,vals,money){
     ${pts.map(p=>`<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="3" fill="var(--accent)"></circle>`).join('')}
     ${labels.map((l,i)=>`<text x="${(i*step).toFixed(1)}" y="${H+16}" font-size="9" font-family="monospace" fill="#6A6383" text-anchor="${i===0?'start':i===labels.length-1?'end':'middle'}">${new Date(l+'-01').toLocaleDateString('en-IN',{month:'short'})}</text>`).join('')}
   </svg><div class="legend"><span>Peak: ${money?short(max):max}</span><span>Total: ${money?short(vals.reduce((a,b)=>a+b,0)):vals.reduce((a,b)=>a+b,0)}</span></div>`;
+}
+// A real multi-line chart: several named, colour-coded series sharing one time axis, each with
+// a clickable legend chip to show/hide it — used for the Analytics "leads over time" chart
+// where several trend lines (total/failed/interested/converted/fake) need to sit on one graph
+// without becoming unreadable clutter.
+const LINE_COLORS=['#4B0FA0','#F01848','#0ECD7F','#1D8FE0','#E07B1D','#8A3FD8'];
+function multiLineChart(labels,series,hiddenKeys){
+  hiddenKeys=hiddenKeys||new Set();
+  const visible=series.filter(s=>!hiddenKeys.has(s.key));
+  const W=560,H=190,pad=8;
+  const allVals=visible.flatMap(s=>s.values);
+  const max=Math.max(1,...allVals);
+  const step=labels.length>1?(W-pad*2)/(labels.length-1):0;
+  const yOf=v=>H-pad-(v/max)*(H-pad*2-14);
+  const xOf=i=>pad+i*step;
+  const lines=visible.map(s=>{
+    const d=s.values.map((v,i)=>(i?'L':'M')+xOf(i).toFixed(1)+' '+yOf(v).toFixed(1)).join(' ');
+    return `<path d="${d}" fill="none" stroke="${s.color}" stroke-width="2.2"></path>
+      ${s.values.map((v,i)=>`<circle cx="${xOf(i).toFixed(1)}" cy="${yOf(v).toFixed(1)}" r="2.6" fill="${s.color}"></circle>`).join('')}`;
+  }).join('');
+  const xLabels=labels.map((l,i)=>`<text x="${xOf(i).toFixed(1)}" y="${H+2}" font-size="9" font-family="monospace" fill="#6A6383" text-anchor="${i===0?'start':i===labels.length-1?'end':'middle'}">${new Date(l+'-01').toLocaleDateString('en-IN',{month:'short'})}</text>`).join('');
+  const legend=series.map(s=>`<button class="linelegend ${hiddenKeys.has(s.key)?'off':''}" data-linekey="${esc(s.key)}" style="--lc:${s.color}">
+    <span class="dot" style="background:${s.color}"></span>${esc(s.label)}</button>`).join('');
+  return `<svg viewBox="0 0 ${W} ${H+14}" style="width:100%;height:auto" preserveAspectRatio="xMidYMid meet">${lines}${xLabels}</svg>
+    <div class="linelegendrow">${legend}</div>`;
 }
 const targetOf=m=>Number(S.settings.targets[m]||S.settings.defaultTarget||0);
 const collectedIn=m=>S.payments.filter(p=>(p.date||'').slice(0,7)===m).reduce((s,p)=>s+Number(p.amount||0),0);
@@ -1327,7 +1371,7 @@ function filterBar(scope){
       ${team().map(t=>`<option value="${esc(t.username)}"${filt.assignee===t.username?' selected':''}>${esc(t.name)} (${cnt(t.username)})${t.username===me.username?' ★':''}</option>`).join('')}</select>`}
     <select id="ftag"><option value="">All tags</option>${S.tags.map(t=>`<option${filt.tag===t?' selected':''}>${esc(t)}</option>`).join('')}
       ${(S.settings.tagBundles||[]).length?`<optgroup label="Bundles">${(S.settings.tagBundles||[]).map(b=>`<option value="bundle:${esc(b.code)}"${filt.tag==='bundle:'+b.code?' selected':''}>${esc(b.code)} (${b.tags.join('+')})</option>`).join('')}</optgroup>`:''}</select>
-    <select id="fstage"><option value="">All stages</option>${STAGES.concat(S.settings.customStages||[]).map(s=>`<option${filt.stage===s?' selected':''}>${s}</option>`).join('')}</select>
+    <select id="fstage"><option value="">All stages</option>${(scope==='projects'?['Advance Paid','Completed']:STAGES).concat(scope==='projects'?[]:(S.settings.customStages||[])).map(s=>`<option${filt.stage===s?' selected':''}>${s}</option>`).join('')}</select>
     <select id="fsvc"><option value="">All services</option>${S.services.map(s=>`<option value="${s.code}"${filt.svc===s.code?' selected':''}>${esc(s.name)}</option>`).join('')}</select>
     <select id="fsort">${[['assigned','Latest assigned'],['updated','Latest update'],['score','Hottest first'],['newest','Newest added'],['name','Name A–Z'],['value','Highest value'],['service','Service']]
       .map(([v,t])=>`<option value="${v}"${filt.sort===v?' selected':''}>${t}</option>`).join('')}</select>
@@ -1338,6 +1382,7 @@ function filterBar(scope){
 }
 const STATUS_ACTIONS=['Contacted','Interested','Call Later','Quotation Sent','Advance Paid','On Hold','Not Interested','Fake','Lost','Completed'];
 let bulkMode=false,bulkSelected=new Set();
+let currentLeadNavList=[]; // ids in the order currently shown on Leads/Projects, so the open lead drawer can step through them
 function leadCard(l,sno){
   const u=(l.statusUpdates||[]).slice(-1)[0],mine=l.assignedTo===me.username,na=nextAction(l),dead=DEAD.includes(l.stage);
   return `<div class="lead compact ${mine?'mine':''} ${dead?'dead':''} ${l.priority?'pri':''} ${bulkSelected.has(l.id)?'bulkpicked':''}" data-card="${l.id}">
@@ -1385,6 +1430,7 @@ function leadCard(l,sno){
 }
 function vLeads(){
   const rows=leadRows('leads');
+  currentLeadNavList=rows.map(l=>l.id); // remembers the currently visible order so the drawer's Prev/Next buttons know what to step through
   return `${syncWarningBanner()}${inboxBanner()}<div class="topbar"><div><h1>Leads</h1><p class="sub">${rows.length} shown · ${S.leads.length} on file</p></div><div class="spacer"></div>
     <button class="btn sm ${bulkMode?'gold':'ghost'}" id="toggleBulk">${bulkMode?'✕ Cancel select':'☑ Select multiple'}</button></div>
   ${bulkMode?`<div class="bulkbar">
@@ -1673,9 +1719,13 @@ function openLead(id){
   const l=leadOf(id);if(!l)return;
   if(!canOpenLead(l))return toast('This lead is assigned to someone else');
   const bal=leadBalance(id),ph=cleanPh(l.phone).slice(-10),n=score(l),b=band(n);
+  const navIx=currentLeadNavList.indexOf(id);
+  const hasPrev=navIx>0,hasNext=navIx>=0&&navIx<currentLeadNavList.length-1;
   layer(`<div class="dhead"><div style="flex:1"><div class="eyebrow">${esc(l.tag||'GSS')} · ${esc(l.source||'lead')} · added ${fmtD(l.createdAt.slice(0,10))}${l.owner?' by '+esc(nameOf(l.owner)):''}</div>
     <input id="editName" value="${esc(l.name)}" style="font-size:19px;font-weight:700;border:1px solid transparent;background:transparent;padding:2px 0;margin:2px 0 0" onfocus="this.style.borderColor='var(--line)';this.style.background='#fff'">
     <div class="sub">${esc(l.company||'')}${l.assignedTo?' · with '+esc(nameOf(l.assignedTo)):''} · <span class="score ${b[0]}">${b[1]} ${n}</span></div></div>
+    ${navIx>=0?`<button class="x" data-navlead="prev" ${hasPrev?'':'disabled style="opacity:.3"'} title="Previous">‹</button>
+    <button class="x" data-navlead="next" ${hasNext?'':'disabled style="opacity:.3"'} title="Next">›</button>`:''}
     <button class="x" data-close>✕</button></div>
   <div class="dbody">
     ${nextAction(l)?`<div class="next">→ ${esc(nextAction(l))}</div>`:''}
@@ -1739,6 +1789,15 @@ function openLead(id){
     d.fees=leadFee(d);d.updatedAt=new Date().toISOString();save();render();});
 
   $('#dass').onchange=e=>{assign(id,e.target.value);toast(e.target.value?'Assigned to '+nameOf(e.target.value):'Unassigned');};
+  document.querySelectorAll('[data-navlead]').forEach(el=>el.onclick=()=>{
+    if(el.disabled)return;
+    const dir=el.dataset.navlead,ix=currentLeadNavList.indexOf(id);
+    if(ix<0)return;
+    const targetId=dir==='next'?currentLeadNavList[ix+1]:currentLeadNavList[ix-1];
+    if(!targetId)return;
+    closeLayer(); // this correctly saves the current lead's edits before moving on, same as any other close
+    openLead(targetId);
+  });
   $('#editName').onchange=e=>{const d=leadOf(id);const v=e.target.value.trim();if(v){d.name=v;d.updatedAt=new Date().toISOString();save();render();}};
   $('#editName').onkeydown=e=>{if(e.key==='Enter')e.target.blur();};
   const qp=document.querySelector('[data-quickpay]');qp&&(qp.onclick=()=>quickPayForLead(id));
@@ -1778,6 +1837,7 @@ function togglePaymentIssue(id){
 let projFilt={showCompleted:false};
 function vProjects(){
   filt.uncalled=false; // this filter only makes sense on Leads; never let it silently persist here
+  if(filt.stage&&!['Advance Paid','Completed'].includes(filt.stage))filt.stage=''; // a lead-only stage carried over from Leads makes no sense here
   const all=leadRows('projects');
   // "Completed" hides by default. Trust an explicit completion the same way regardless of how
   // it was set — via the "Mark completed" button or the auto-complete-on-full-payment path —
@@ -1789,6 +1849,7 @@ function vProjects(){
   // it, since that's a genuine "this still needs attention" signal, not a balance quirk.
   const isDone=l=>l.stage==='Completed'&&!l.paymentIssue;
   const rows=projFilt.showCompleted?all.filter(isDone):all.filter(l=>!isDone(l));
+  currentLeadNavList=rows.map(l=>l.id);
   const thisMonth=month();
   const startedThisMonth=all.filter(l=>l.createdAt.slice(0,7)===thisMonth||(l.statusUpdates||[]).some(u=>u.at.slice(0,7)===thisMonth&&/advance|paid/i.test(u.text)));
   const pending=all.filter(l=>!isDone(l)).reduce((s,l)=>s+leadBalance(l.id),0);
@@ -1833,10 +1894,70 @@ function projectCard(l){
       <button data-lead="${l.id}">Open</button>
       <button data-issue="${l.id}" style="${l.paymentIssue?'border-color:var(--pink);color:var(--pink)':''}">${l.paymentIssue?'Clear issue':'Flag payment issue'}</button>
       ${bal>0.5?'<button data-quickpay="'+l.id+'">₹ Add payment</button>':''}
-      <button data-newtk="${l.id}">${AICON.ticket} Ticket</button></div>
+      <button data-newtk="${l.id}">${AICON.ticket} Ticket</button>
+      <button data-projinfo="${l.id}">${AICON.copy} Project Info${(l.docs||[]).length?' ('+l.docs.length+')':''}</button></div>
     ${u?`<div class="latest"><span class="when">${ago(u.at)} · ${esc(nameOf(u.by))}</span><span>${esc(u.text)}</span></div>`:''}
     <div class="statusline"><input data-su="${l.id}" placeholder="Add a work update, press enter…" autocomplete="off">
       <button class="btn sm ghost" data-hist="${l.id}">History</button></div></div>`;
+}
+function openProjectInfo(leadId){
+  const l=leadOf(leadId);if(!l)return;
+  const draw=()=>{
+    layer(`<div class="dhead"><div style="flex:1"><div class="eyebrow">Project Info</div><h1 style="font-size:19px">${esc(l.name)}</h1>
+      <div class="sub">${esc(leadSvcNames(l)||'—')}</div></div><button class="x" data-close>✕</button></div>
+    <div class="dbody">
+      <div class="card"><h2>Notes</h2>
+        <p class="sub" style="margin-bottom:8px">Paste anything relevant — scope details, credentials, links, whatever the team needs on hand for this project.</p>
+        <textarea id="projInfoText" rows="10" placeholder="Paste project info here…">${esc(l.projectInfo||'')}</textarea>
+        <button class="btn sm ghost" id="saveProjInfo" style="margin-top:8px">Save</button></div>
+      <div class="card" style="margin-top:12px"><h2>Files</h2>
+        <input type="file" id="projFileInput" style="display:none" multiple>
+        <button class="btn wide" id="pickProjFile">${AICON.up} Upload a file</button>
+        <div id="projUploadStatus" class="eyebrow" style="margin-top:6px"></div>
+        ${(l.docs||[]).length?`<div style="margin-top:10px">${(l.docs||[]).map(d=>`<div class="row" style="align-items:center;border-bottom:1px solid var(--line);padding:8px 0">
+          <div style="flex:2"><b>${esc(d.name)}</b><div class="eyebrow">${fmtDT(d.at)} · ${esc(nameOf(d.by))}</div></div>
+          <a class="btn sm ghost" href="${esc(d.url)}" target="_blank" style="flex:0 0 auto">${AICON.down} Open</a>
+          <button class="btn sm ghost" data-rmprojfile="${d.id}" style="flex:0 0 auto;color:var(--bad)">Remove</button>
+        </div>`).join('')}</div>`:'<div class="empty" style="margin-top:8px">No files uploaded yet.</div>'}
+      </div>
+    </div>`,()=>{});
+    $('#saveProjInfo').onclick=()=>{
+      l.projectInfo=$('#projInfoText').value;l.updatedAt=new Date().toISOString();
+      save();toast('Saved');};
+    $('#pickProjFile').onclick=()=>$('#projFileInput').click();
+    $('#projFileInput').onchange=async e=>{
+      const files=[...e.target.files];if(!files.length)return;
+      if(!S.settings.api)return toast('File upload needs the Google Sheet connection');
+      const statusEl=$('#projUploadStatus');
+      for(const file of files){
+        statusEl.textContent='Uploading '+file.name+'…';
+        try{
+          const base64=await fileToBase64(file);
+          const r=await api('uploadProjectFile',{leadId:l.id,fileName:file.name,mimeType:file.type,base64});
+          if(r.ok){
+            l.docs=l.docs||[];l.docs.push(r.file);l.updatedAt=new Date().toISOString();save();
+          }else{toast(r.error||'Upload failed for '+file.name);}
+        }catch(err){toast('Could not upload '+file.name);}
+      }
+      statusEl.textContent='';draw();
+    };
+    document.querySelectorAll('[data-rmprojfile]').forEach(b=>b.onclick=async()=>{
+      if(!confirm('Remove this file? This deletes it from Drive too.'))return;
+      const docId=b.dataset.rmprojfile;
+      const doc=(l.docs||[]).find(d=>d.id===docId);
+      l.docs=(l.docs||[]).filter(d=>d.id!==docId);l.updatedAt=new Date().toISOString();save();draw();
+      if(doc&&S.settings.api){try{await api('deleteProjectFile',{fileId:doc.id});}catch(e){}}
+    });
+  };
+  draw();
+}
+function fileToBase64(file){
+  return new Promise((resolve,reject)=>{
+    const reader=new FileReader();
+    reader.onload=()=>resolve(reader.result.split(',')[1]);
+    reader.onerror=reject;
+    reader.readAsDataURL(file);
+  });
 }
 function editWorkAssignees(leadId){
   const l=leadOf(leadId);
@@ -2665,6 +2786,29 @@ function myNotices(){
   return (S.notices||[]).filter(n=>n.to.includes(me.username)||n.to.includes('ALL'))
     .sort((a,b)=>b.at.localeCompare(a.at));
 }
+let checklistCompose=false;
+function myChecklist(){
+  return (S.checklists||[]).filter(c=>c.owner===me.username&&!c.done).sort((a,b)=>(a.order??0)-(b.order??0));
+}
+function personalChecklistCard(){
+  const items=myChecklist();
+  return `<div class="card" style="margin-bottom:14px"><div class="row" style="align-items:center">
+    <h2 style="margin:0">✓ Your checklist</h2>
+    <button class="btn sm ghost" id="addChecklistItem" style="flex:0 0 auto;margin-left:auto">${checklistCompose?'Cancel':'+ Add item'}</button></div>
+    ${checklistCompose?`<div class="row" style="margin-top:8px">
+      <input id="newChecklistText" placeholder="What needs doing…" style="flex:2">
+      <input type="date" id="newChecklistDate" title="Schedule for a date (optional)">
+      <button class="btn sm" id="saveChecklistItem" style="flex:0 0 auto">Add</button></div>`:''}
+    ${items.length?items.map((c,ix)=>`<div class="row" style="align-items:center;border-bottom:1px solid var(--line);padding:8px 0">
+      <div style="flex:0 0 auto;display:flex;flex-direction:column;gap:1px">
+        <button class="btn sm ghost" data-clup="${c.id}" ${ix===0?'disabled style="opacity:.25"':''} style="padding:1px 6px;font-size:10px;line-height:1">▲</button>
+        <button class="btn sm ghost" data-cldown="${c.id}" ${ix===items.length-1?'disabled style="opacity:.25"':''} style="padding:1px 6px;font-size:10px;line-height:1">▼</button>
+      </div>
+      <div style="flex:2"><b>${esc(c.text)}</b>${c.date?`<div class="eyebrow" style="${c.date<=today()?'color:var(--bad);font-weight:600':''}">${AICON.clock} ${fmtD(c.date)}</div>`:''}</div>
+      <button class="btn sm green" data-cldone="${c.id}" style="flex:0 0 auto">✓ Done</button>
+    </div>`).join(''):'<div class="empty">Nothing on your checklist.</div>'}
+  </div>`;
+}
 function noticesCard(){
   const mine=myNotices();
   const canPost=can('manageUsers')||me.role==='admin';
@@ -2777,6 +2921,7 @@ function vTeam(){
       :myFollowUpsOverdue.length?'':'<div class="empty">Nothing due today.</div>'}
     ${myFollowUpsUpcoming.length?`<div class="eyebrow" style="margin:8px 0 4px">Next 7 days</div>${myFollowUpsUpcoming.map(x=>rowMini(x,fmtD(x.followUp),true)).join('')}`:''}
   </div>
+  ${personalChecklistCard()}
   ${noticesCard()}
   <div class="kpis">
     ${kpi('Team members',people.length,'active logins','hi')}
@@ -2811,12 +2956,47 @@ function vTeam(){
   `;
 }
 let reportsFilt={from:'',to:'',tag:''};
+let trendChartHidden=new Set(),trendChartService='';
+function openFakeDrilldown(L){
+  const fakeLeads=L.filter(l=>l.stage==='Fake');
+  const byService={};fakeLeads.forEach(l=>{
+    const svcs=(l.services||[]).length?(l.services||[]).map(s=>s.name):['(no service listed)'];
+    svcs.forEach(s=>byService[s]=(byService[s]||0)+1);
+  });
+  const bySource={};fakeLeads.forEach(l=>{const s=l.source||'Other';bySource[s]=(bySource[s]||0)+1;});
+  layer(`<div class="dhead"><div style="flex:1"><div class="eyebrow">Analytics</div><h1 style="font-size:19px">Fake / junk leads breakdown</h1>
+    <div class="sub">${fakeLeads.length} fake leads, filtered the same way as the Analytics page.</div></div><button class="x" data-close>✕</button></div>
+  <div class="dbody">
+    <div class="card"><h2>By service type</h2>
+      ${Object.keys(byService).length?barsHTML(Object.entries(byService).sort((a,b)=>b[1]-a[1])):'<div class="empty">No services on file for these leads.</div>'}</div>
+    <div class="card" style="margin-top:12px"><h2>By source channel</h2>
+      ${Object.keys(bySource).length?barsHTML(Object.entries(bySource).sort((a,b)=>b[1]-a[1])):'<div class="empty">No leads to show.</div>'}</div>
+    <div class="card" style="margin-top:12px"><h2>All fake leads</h2>
+      ${fakeLeads.length?fakeLeads.slice(0,50).map(l=>`<div class="row click" data-lead="${l.id}" style="align-items:center;border-bottom:1px solid var(--line);padding:8px 0;cursor:pointer">
+        <div style="flex:2"><b>${esc(l.name)}</b><div class="eyebrow">${esc(leadSvcNames(l)||'—')} · ${esc(l.source||'—')} · ${fmtD(l.createdAt.slice(0,10))}</div></div></div>`).join('')
+        :'<div class="empty">None.</div>'}
+      ${fakeLeads.length>50?`<p class="sub" style="margin-top:8px">Showing latest 50 of ${fakeLeads.length}.</p>`:''}</div>
+  </div>`,()=>render());
+  document.querySelectorAll('[data-lead]').forEach(el=>el.onclick=e=>{e.stopPropagation();openLead(el.dataset.lead);});
+}
 function vReports(){
   let L=staffLocked()?visibleLeads():S.leads;
   if(reportsFilt.from)L=L.filter(l=>l.createdAt.slice(0,10)>=reportsFilt.from);
   if(reportsFilt.to)L=L.filter(l=>l.createdAt.slice(0,10)<=reportsFilt.to);
   if(reportsFilt.tag)L=L.filter(l=>l.tag===reportsFilt.tag);
   const mo=[];for(let k=5;k>=0;k--){const d=new Date();d.setMonth(d.getMonth()-k);mo.push(d.toISOString().slice(0,7));}
+  // Trend data for the top-of-page line chart: total/failed/interested/converted/fake per
+  // month, optionally narrowed to one service — computed from L (already respects the page's
+  // date-range and tag filters) so the chart and the KPIs below it never disagree.
+  const trendSvcLeads=trendChartService?L.filter(l=>(l.services||[]).some(s=>s.name===trendChartService)):L;
+  const trendData={
+    total:mo.map(m=>trendSvcLeads.filter(l=>l.createdAt.slice(0,7)===m).length),
+    failed:mo.map(m=>trendSvcLeads.filter(l=>l.createdAt.slice(0,7)===m&&['Lost','Not Interested'].includes(l.stage)).length),
+    interested:mo.map(m=>trendSvcLeads.filter(l=>l.createdAt.slice(0,7)===m&&['Interested','Quotation Sent','Advance Paid','Completed'].includes(l.stage)).length),
+    converted:mo.map(m=>trendSvcLeads.filter(l=>l.createdAt.slice(0,7)===m&&leadPaid(l.id)>0).length),
+    fake:mo.map(m=>trendSvcLeads.filter(l=>l.createdAt.slice(0,7)===m&&l.stage==='Fake').length),
+  };
+  const allServiceNames=[...new Set(S.services.map(s=>s.name))];
   const leadsBy=mo.map(m=>L.filter(l=>l.createdAt.slice(0,7)===m).length);
   const collBy=mo.map(m=>collectedIn(m));
   const quoted=L.filter(l=>['Quotation Sent','Advance Paid','Completed'].includes(l.stage)).length;
@@ -2857,6 +3037,19 @@ function vReports(){
     <select id="repTag"><option value="">All tags</option>${S.tags.map(t=>`<option${reportsFilt.tag===t?' selected':''}>${esc(t)}</option>`).join('')}</select>
     ${(reportsFilt.from||reportsFilt.to||reportsFilt.tag)?`<button class="btn sm ghost" id="repClear" style="flex:0 0 auto">Clear filters</button>`:''}
   </div>
+  <div class="card" style="margin-bottom:14px"><div class="row" style="align-items:center;margin-bottom:8px">
+    <h2 style="margin:0">Leads over time</h2>
+    <select id="trendSvcFilter" style="margin-left:auto;max-width:200px"><option value="">All services</option>
+      ${allServiceNames.map(n=>`<option${trendChartService===n?' selected':''}>${esc(n)}</option>`).join('')}</select></div>
+    <p class="sub" style="margin-bottom:8px">Click a line in the legend to show or hide it.</p>
+    ${multiLineChart(mo,[
+      {key:'total',label:'Total leads',color:LINE_COLORS[0],values:trendData.total},
+      {key:'interested',label:'Interested',color:LINE_COLORS[2],values:trendData.interested},
+      {key:'converted',label:'Converted',color:LINE_COLORS[3],values:trendData.converted},
+      {key:'failed',label:'Failed',color:LINE_COLORS[4],values:trendData.failed},
+      {key:'fake',label:'Fake',color:LINE_COLORS[1],values:trendData.fake},
+    ],trendChartHidden)}
+  </div>
   ${reportsFilt.from||reportsFilt.to?'':`<div class="card" style="margin-bottom:14px"><h2>This month — ${new Date(thisMo+'-01').toLocaleDateString('en-IN',{month:'long',year:'numeric'})}</h2>
     <div class="kpis">
       ${kpi('New leads',newThisMo.length,'came in this month')}
@@ -2870,7 +3063,8 @@ function vReports(){
     ${kpi('Converted',paidL.length,(L.length?Math.round(paidL.length/L.length*100):0)+'% of all leads','hi')}
     ${kpi('Quotations sent',quoted,'reached proposal stage')}
     ${kpi('Failed',lost,(L.length?Math.round(lost/L.length*100):0)+'% lost or not interested','bad')}
-    ${kpi('Fake / junk',fake,(L.length?Math.round(fake/L.length*100):0)+'% of all leads')}
+    <div class="kpi bad" id="fakeDrilldownKpi" style="cursor:pointer" title="Click to see the breakdown">
+      <div class="eyebrow">Fake / junk</div><div class="v">${fake}</div><small>${(L.length?Math.round(fake/L.length*100):0)}% of all leads — click for breakdown</small></div>
     ${kpi('Average order value',short(aov),'per paying client')}
     ${kpi('Sales velocity',velocity+'d','enquiry to first payment')}
   </div>
@@ -2983,6 +3177,24 @@ function vReports(){
           ${kpi('Value lost',short(lostValue),'in denied quotations','bad')}
         </div>
         ${Object.keys(byReason).length?`<div style="margin-top:12px">${barsHTML(Object.entries(byReason).sort((a,b)=>b[1]-a[1]))}</div>`:''}`;
+      })()}
+      </div>
+    <div class="card" style="grid-column:1/-1"><h2>Failed &amp; interested leads — by service and source</h2>
+      <p class="sub" style="margin-bottom:8px">Where things are actually going wrong (or well) — same page filters apply.</p>
+      ${(()=>{
+        const failedL=L.filter(l=>['Lost','Not Interested'].includes(l.stage));
+        const interestedL=L.filter(l=>['Interested','Quotation Sent','Advance Paid','Completed'].includes(l.stage));
+        const byGroup=(list,keyer)=>{const m={};list.forEach(l=>{const keys=keyer(l);(Array.isArray(keys)?keys:[keys]).forEach(k=>m[k]=(m[k]||0)+1);});return m;};
+        const failedBySvc=byGroup(failedL,l=>(l.services||[]).length?l.services.map(s=>s.name):['(no service)']);
+        const failedBySrc=byGroup(failedL,l=>l.source||'Other');
+        const intBySvc=byGroup(interestedL,l=>(l.services||[]).length?l.services.map(s=>s.name):['(no service)']);
+        const intBySrc=byGroup(interestedL,l=>l.source||'Other');
+        return `<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(240px,1fr))">
+          <div><div class="eyebrow" style="margin-bottom:6px">Failed — by service (${failedL.length} total)</div>${barsHTML(Object.entries(failedBySvc).sort((a,b)=>b[1]-a[1]))}</div>
+          <div><div class="eyebrow" style="margin-bottom:6px">Failed — by source</div>${barsHTML(Object.entries(failedBySrc).sort((a,b)=>b[1]-a[1]))}</div>
+          <div><div class="eyebrow" style="margin-bottom:6px">Interested — by service (${interestedL.length} total)</div>${barsHTML(Object.entries(intBySvc).sort((a,b)=>b[1]-a[1]))}</div>
+          <div><div class="eyebrow" style="margin-bottom:6px">Interested — by source</div>${barsHTML(Object.entries(intBySrc).sort((a,b)=>b[1]-a[1]))}</div>
+        </div>`;
       })()}
       </div>
     <div class="card" style="grid-column:1/-1"><h2>Lead source ROI</h2>
@@ -3501,6 +3713,29 @@ function wire(){
   document.querySelectorAll('[data-rmnotice]').forEach(b=>b.onclick=()=>{
     if(!confirm('Remove this notice?'))return;
     S.notices=(S.notices||[]).filter(n=>n.id!==b.dataset.rmnotice);save();render();});
+  const aci=$('#addChecklistItem');aci&&(aci.onclick=()=>{checklistCompose=!checklistCompose;render();});
+  const sci=$('#saveChecklistItem');sci&&(sci.onclick=()=>{
+    const text=$('#newChecklistText').value.trim();if(!text)return toast('Write something first');
+    const date=$('#newChecklistDate').value;
+    const items=myChecklist();
+    S.checklists=S.checklists||[];
+    S.checklists.push({id:uid('cl'),owner:me.username,text,date,done:false,order:items.length,updatedAt:new Date().toISOString()});
+    checklistCompose=false;save();render();toast('Added to your checklist');});
+  document.querySelectorAll('[data-cldone]').forEach(b=>b.onclick=()=>{
+    const c=(S.checklists||[]).find(x=>x.id===b.dataset.cldone);if(!c)return;
+    c.done=true;c.updatedAt=new Date().toISOString();save();render();toast('Done');});
+  document.querySelectorAll('[data-clup]').forEach(b=>b.onclick=()=>{
+    const items=myChecklist();const ix=items.findIndex(x=>x.id===b.dataset.clup);
+    if(ix<=0)return;
+    const a=items[ix],c=items[ix-1];const tmp=a.order;a.order=c.order;c.order=tmp;
+    a.updatedAt=new Date().toISOString();c.updatedAt=new Date().toISOString();
+    save();render();});
+  document.querySelectorAll('[data-cldown]').forEach(b=>b.onclick=()=>{
+    const items=myChecklist();const ix=items.findIndex(x=>x.id===b.dataset.cldown);
+    if(ix<0||ix>=items.length-1)return;
+    const a=items[ix],c=items[ix+1];const tmp=a.order;a.order=c.order;c.order=tmp;
+    a.updatedAt=new Date().toISOString();c.updatedAt=new Date().toISOString();
+    save();render();});
   const es=$('#expSave');es&&(es.onclick=()=>{
     const amt=Number($('#expAmt').value)||0;if(amt<=0)return toast('Enter an amount');
     S.expenses.push({id:uid('exp'),kind:$('#expKind').value,date:$('#expDate').value,amount:amt,note:$('#expNote').value.trim(),by:me.username});
@@ -3561,6 +3796,7 @@ function wire(){
     audit('Marked '+l.name+' completed');save();render();toast('Project marked completed');});
   document.querySelectorAll('[data-issue]').forEach(el=>el.onclick=()=>{togglePaymentIssue(el.dataset.issue);render();});
   document.querySelectorAll('[data-editwa]').forEach(el=>el.onclick=e=>{e.stopPropagation();editWorkAssignees(el.dataset.editwa);});
+  document.querySelectorAll('[data-projinfo]').forEach(el=>el.onclick=e=>{e.stopPropagation();openProjectInfo(el.dataset.projinfo);});
   document.querySelectorAll('[data-confirmwork]').forEach(el=>el.onclick=e=>{e.stopPropagation();
     const l=leadOf(el.dataset.confirmwork);const a=(l.workAssignees||[]).find(x=>x.username===me.username);
     if(a){a.confirmed=true;addUpdate(l.id,me.name+' confirmed their part done',true);audit(me.name+' confirmed work on '+l.name);save();render();toast('Marked as done');}});
@@ -3603,7 +3839,9 @@ function wire(){
   if($('#fq')){
     $('#fq').oninput=e=>{filt.q=e.target.value;const pos=e.target.selectionStart,p=$('#paste')?$('#paste').value:'';
       render();if($('#paste'))$('#paste').value=p;const f=$('#fq');f.focus();try{f.setSelectionRange(pos,pos);}catch(x){}};
-    $('#fstage').onchange=e=>{filt.stage=e.target.value;render();};
+    $('#fstage').onchange=e=>{filt.stage=e.target.value;
+      if(route==='projects')projFilt.showCompleted=(filt.stage==='Completed');
+      render();};
     $('#fsvc').onchange=e=>{filt.svc=e.target.value;render();};
     $('#fass').onchange=e=>{filt.assignee=e.target.value;render();};
     $('#fsort').onchange=e=>{filt.sort=e.target.value;render();};
@@ -3777,4 +4015,4 @@ function newLead(o){
     createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),lastTouch:''},o);
 }
 </script>
-</body></html>  
+</body></html>
