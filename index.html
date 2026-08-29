@@ -971,6 +971,15 @@ const invState=i=>{if(i.status==='denied')return 'denied';if(i.status==='cancell
   if(paidOn(i.id)>0)return 'partial';if(i.type==='proforma')return 'proforma';return days(i.dueDate||i.date)>0?'overdue':'unpaid';};
 const invPill=i=>{const m={paid:['g','Paid'],partial:['a','Part paid'],unpaid:['b','Sent'],overdue:['r','Overdue'],proforma:['n','Quotation'],cancelled:['n','Cancelled'],denied:['r','Denied']}[invState(i)];return `<span class="pill ${m[0]}">${m[1]}</span>`;};
 const leadOf=id=>S.leads.find(l=>l.id===id);
+// Every function that mutates a lead must call this — the multi-device merge decides which
+// copy of a lead "wins" by comparing l.updatedAt, but several lead-editing functions were only
+// ever setting l.lastTouch (a different field, used for UI display) and never l.updatedAt
+// itself. That meant the merge was comparing an unchanged or missing timestamp, so an
+// assignment (or other edit) could easily lose to a genuinely stale copy on another device
+// during the next sync — invisibly, with no error, which is exactly what made an assignment
+// look like it "didn't save" for other people. Centralising the stamp here means no mutator
+// can forget it.
+function touchLead(l){l.updatedAt=new Date().toISOString();l.lastTouch=l.updatedAt;}
 const coOf=id=>S.companies.find(c=>c.id===id)||S.companies[0];
 const openInvoices=()=>S.invoices.filter(i=>i.status!=='cancelled'&&dueOn(i)>0.5);
 const svcOf=c=>S.services.find(s=>s.code===c);
@@ -1714,7 +1723,7 @@ function logQuickCall(id,type){
   const l=leadOf(id);if(!l)return;
   l.logs=l.logs||[];
   l.logs.push({at:new Date().toISOString(),by:me.username,type,outcome:'Pending',text:''});
-  l.lastTouch=new Date().toISOString();
+  touchLead(l);
   save();
   toast(type+' logged');
 }
@@ -1731,14 +1740,14 @@ function setLastCallOutcome(id,outcome){
   const calls=l.logs.filter(x=>x.type==='Call');
   if(calls.length){calls[calls.length-1].outcome=outcome;}
   else{l.logs.push({at:new Date().toISOString(),by:me.username,type:'Call',outcome,text:''});}
-  l.lastTouch=new Date().toISOString();
+  touchLead(l);
   save();
 }
 function addUpdate(id,text,silent){
   const l=leadOf(id);if(!l||!text.trim())return;
   l.statusUpdates=l.statusUpdates||[];
   l.statusUpdates.push({at:new Date().toISOString(),by:me.username,text:text.trim()});
-  l.lastTouch=new Date().toISOString();save();
+  touchLead(l);save();
   if(silent)return;
   const card=document.querySelector('[data-card="'+id+'"]');
   if(card){const line=card.querySelector('.latest');
@@ -1764,6 +1773,7 @@ function assign(id,to){
   const l=leadOf(id);
   l.assignedTo=to||'';l.assignedBy=me.username;l.assignedAt=new Date().toISOString();
   (l.statusUpdates=l.statusUpdates||[]).push({at:new Date().toISOString(),by:me.username,text:to?('Assigned to '+nameOf(to)):'Unassigned'});
+  touchLead(l);
   audit('Assigned '+l.name+' to '+(nameOf(to)||'nobody'));save();
 }
 function setStage(id,st){
@@ -1897,17 +1907,17 @@ function openLead(id){
     if(el.dataset.k==='code'){s.code=el.value;s.name=(svcOf(el.value)||{}).name||el.value;}else s.rate=Number(el.value)||0;});d.fees=leadFee(d);};
   document.querySelectorAll('[data-s]').forEach(el=>el.onchange=()=>{pullSvc();save();openLead(id);});
   $('#addSvc').onclick=()=>{const d=leadOf(id);pullSvc();d.services=d.services||[];const s=S.services[0];
-    d.services.push({code:s.code,name:s.name,rate:s.rate||0});save();openLead(id);};
-  document.querySelectorAll('[data-rms]').forEach(b=>b.onclick=()=>{const d=leadOf(id);pullSvc();d.services.splice(+b.dataset.rms,1);save();openLead(id);});
+    d.services.push({code:s.code,name:s.name,rate:s.rate||0});touchLead(d);save();openLead(id);};
+  document.querySelectorAll('[data-rms]').forEach(b=>b.onclick=()=>{const d=leadOf(id);pullSvc();d.services.splice(+b.dataset.rms,1);touchLead(d);save();openLead(id);});
   $('#addLog').onclick=()=>{const d=leadOf(id);d.logs=d.logs||[];
     d.logs.push({at:new Date().toISOString(),by:me.username,type:$('#logType').value,outcome:$('#logOut').value,text:$('#logText').value.trim()});
-    d.lastTouch=new Date().toISOString();save();openLead(id);toast('Logged');};
+    touchLead(d);save();openLead(id);toast('Logged');};
   document.querySelectorAll('[data-tmpl]').forEach(b=>b.onclick=()=>{
     const d=leadOf(id);
     const t=fillTemplate(b.dataset.tmpl,d);
     if(!t)return;
     window.open(wa(d.phone)+'?text='+encodeURIComponent(t),'_blank');copy(t,'Message copied');
-    d.logs=d.logs||[];d.logs.push({at:new Date().toISOString(),by:me.username,type:'WhatsApp',outcome:'—',text:t});d.lastTouch=new Date().toISOString();save();});
+    d.logs=d.logs||[];d.logs.push({at:new Date().toISOString(),by:me.username,type:'WhatsApp',outcome:'—',text:t});touchLead(d);save();});
   document.querySelectorAll('[data-newinv]').forEach(b=>b.onclick=()=>editInvoice(null,{leadId:id,type:b.dataset.newinv}));
   document.querySelectorAll('[data-inv]').forEach(b=>b.onclick=()=>editInvoice(b.dataset.inv));
   const nt=document.querySelector('[data-newtk]');nt&&(nt.onclick=()=>editTicket(null,id));
@@ -2384,7 +2394,7 @@ function editInvoice(id,seed){
         if(OPEN_STAGES.includes(l2.stage)&&l2.stage!=='Quotation Sent')l2.stage='Quotation Sent';
         (l2.statusUpdates=l2.statusUpdates||[]).push({at:new Date().toISOString(),by:me.username,
           text:(inv.type==='tax'?'Invoice ':'Quotation ')+inv.number+' raised and sent by '+me.name});
-        l2.lastTouch=new Date().toISOString();
+        l2.lastTouch=new Date().toISOString();l2.updatedAt=l2.lastTouch;
       }
       save();
       // Auto-send happens once, only on the very first save of a brand-new document — never
@@ -2484,7 +2494,7 @@ function recordPayment(invId){
     if(l){if(OPEN_STAGES.includes(l.stage)){l.stage='Advance Paid';if(l.work==='Not started')l.work='In progress';}
       if(leadBalance(l.id)<=0.5&&l.work==='Final delivered')l.stage='Completed';
       (l.statusUpdates=l.statusUpdates||[]).push({at:new Date().toISOString(),by:me.username,text:kind+' of '+inr(amt)+' received via '+$('#pmode').value});
-      l.lastTouch=new Date().toISOString();}
+      l.lastTouch=new Date().toISOString();l.updatedAt=l.lastTouch;}
     audit('Recorded '+inr(amt)+' against '+inv.number);save();closeLayer(true);render();toast('Payment recorded');};
 }
 
@@ -3992,10 +4002,10 @@ function wire(){
     save();render();toast('Rescheduled to '+fmtD(d));});
   document.querySelectorAll('[data-logwa]').forEach(el=>el.onclick=e=>{e.stopPropagation();logQuickCall(el.dataset.logwa,'WhatsApp');});
   document.querySelectorAll('[data-pri]').forEach(el=>el.onchange=e=>{e.stopPropagation();
-    const l=leadOf(el.dataset.pri);l.priority=el.checked;save();
+    const l=leadOf(el.dataset.pri);l.priority=el.checked;touchLead(l);save();
     const card=el.closest('.lead');if(card)card.classList.toggle('pri',l.priority);});
   document.querySelectorAll('[data-flagstaff]').forEach(el=>el.onclick=()=>{
-    const l=leadOf(el.dataset.flagstaff);l.flagForStaff=!l.flagForStaff;
+    const l=leadOf(el.dataset.flagstaff);l.flagForStaff=!l.flagForStaff;touchLead(l);
     audit((l.flagForStaff?'Flagged':'Unflagged')+' '+l.name+' for staff visibility');
     save();openLead(l.id);toast(l.flagForStaff?'Now visible to staff on Payments':'Removed from staff view');});
   document.querySelectorAll('[data-work]').forEach(el=>el.onclick=()=>{
@@ -4074,20 +4084,20 @@ function wire(){
     const v=bAssign.value;if(!v||!bulkSelected.size)return;
     const target=v==='__none__'?'':v;
     bulkSelected.forEach(id=>{const l=leadOf(id);if(!l)return;
-      l.assignedTo=target;l.assignedBy=me.username;l.assignedAt=new Date().toISOString();});
+      l.assignedTo=target;l.assignedBy=me.username;l.assignedAt=new Date().toISOString();touchLead(l);});
     audit('Bulk-assigned '+bulkSelected.size+' leads to '+(target?nameOf(target):'nobody'));
     save();toast(bulkSelected.size+' leads assigned');bulkSelected.clear();bulkMode=false;render();});
   const bTag=$('#bulkTag');bTag&&(bTag.onchange=()=>{
     const v=bTag.value;if(!v||!bulkSelected.size)return;
-    bulkSelected.forEach(id=>{const l=leadOf(id);if(l)l.tag=v;});
+    bulkSelected.forEach(id=>{const l=leadOf(id);if(l){l.tag=v;touchLead(l);}});
     audit('Bulk-tagged '+bulkSelected.size+' leads as '+v);
     save();toast(bulkSelected.size+' leads tagged '+v);bulkSelected.clear();bulkMode=false;render();});
   const bPOn=$('#bulkPriorityOn');bPOn&&(bPOn.onclick=()=>{if(!bulkSelected.size)return toast('Select some leads first');
-    bulkSelected.forEach(id=>{const l=leadOf(id);if(l)l.priority=true;});
+    bulkSelected.forEach(id=>{const l=leadOf(id);if(l){l.priority=true;touchLead(l);}});
     audit('Bulk-marked '+bulkSelected.size+' leads as priority');
     save();toast(bulkSelected.size+' leads marked priority');bulkSelected.clear();bulkMode=false;render();});
   const bPOff=$('#bulkPriorityOff');bPOff&&(bPOff.onclick=()=>{if(!bulkSelected.size)return toast('Select some leads first');
-    bulkSelected.forEach(id=>{const l=leadOf(id);if(l)l.priority=false;});
+    bulkSelected.forEach(id=>{const l=leadOf(id);if(l){l.priority=false;touchLead(l);}});
     audit('Bulk-unmarked priority on '+bulkSelected.size+' leads');
     save();toast('Priority removed');bulkSelected.clear();bulkMode=false;render();});
   const nt=$('#newTk');nt&&(nt.onclick=()=>editTicket(null,''));
