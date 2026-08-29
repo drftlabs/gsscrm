@@ -190,6 +190,11 @@ tr.click:hover{background:linear-gradient(90deg,var(--brand-soft),#FAF8FD);curso
 .bar .val{font-family:var(--mono);font-size:12px;text-align:right;color:var(--muted)}
 .spark{width:100%;height:132px}
 .linelegendrow{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.chart-hitzone{cursor:crosshair}
+.chart-tooltip{position:absolute;pointer-events:none;background:#1a1a2e;color:#fff;border-radius:8px;padding:8px 11px;font-size:11.5px;line-height:1.6;box-shadow:0 6px 18px -6px rgba(0,0,0,.5);z-index:5;white-space:nowrap;transform:translate(-50%,-100%);margin-top:-8px}
+.chart-tooltip b{display:block;font-size:11px;color:#C7BEE8;margin-bottom:3px;font-weight:600}
+.chart-tooltip .row2{display:flex;align-items:center;gap:6px}
+.chart-tooltip .dot{width:7px;height:7px;border-radius:99px;display:inline-block;flex:0 0 auto}
 .linelegend{display:inline-flex;align-items:center;gap:5px;background:#fff;border:1px solid var(--line);border-radius:99px;padding:4px 10px;font-size:11.5px;font-weight:600;cursor:pointer;color:var(--ink)}
 .linelegend .dot{width:8px;height:8px;border-radius:99px;display:inline-block}
 .linelegend.off{opacity:.4;background:var(--bg)}
@@ -1089,6 +1094,27 @@ function render(){
     trendChartHidden.has(k)?trendChartHidden.delete(k):trendChartHidden.add(k);
     render();});
   const tsf=$('#trendSvcFilter');tsf&&(tsf.onchange=e=>{trendChartService=e.target.value;render();});
+  document.querySelectorAll('.chartwrap').forEach(wrap=>{
+    const svg=wrap.querySelector('svg[data-series]'),tip=wrap.querySelector('.chart-tooltip');
+    if(!svg||!tip)return;
+    let series;try{series=JSON.parse(svg.dataset.series);}catch(e){series=[];}
+    const showTip=(zone,evt)=>{
+      const label=zone.dataset.ptlabel,ix=+zone.dataset.ptindex;
+      tip.innerHTML=`<b>${esc(label)}</b>`+series.map(s=>
+        `<div class="row2"><span class="dot" style="background:${s.color}"></span>${esc(s.label)}: <b style="margin:0">${s.values[ix]}</b></div>`).join('');
+      const rect=wrap.getBoundingClientRect();
+      tip.style.left=(evt.clientX-rect.left)+'px';
+      tip.style.top=(evt.clientY-rect.top)+'px';
+      tip.style.display='block';
+    };
+    svg.querySelectorAll('.chart-hitzone').forEach(zone=>{
+      zone.addEventListener('mouseenter',e=>showTip(zone,e));
+      zone.addEventListener('mousemove',e=>showTip(zone,e));
+      zone.addEventListener('mouseleave',()=>{tip.style.display='none';});
+      zone.addEventListener('touchstart',e=>{showTip(zone,e.touches[0]);},{passive:true});
+    });
+    wrap.addEventListener('mouseleave',()=>{tip.style.display='none';});
+  });
   document.querySelectorAll('[data-coexpand]').forEach(b=>b.onclick=()=>{moneyCoOpen[b.dataset.coexpand]=!moneyCoOpen[b.dataset.coexpand];render();});
   const custq=$('#custq');custq&&(custq.oninput=e=>{custFilt.q=e.target.value;});
   const hmt=$('#hideMoneyToggle');hmt&&(hmt.onchange=()=>{S.settings.hideMoneyFromStaff=hmt.checked;
@@ -1199,16 +1225,29 @@ function multiLineChart(labels,series,hiddenKeys){
   const xOf=i=>pad+i*step;
   const lines=visible.map(s=>{
     const d=s.values.map((v,i)=>(i?'L':'M')+xOf(i).toFixed(1)+' '+yOf(v).toFixed(1)).join(' ');
-    // A larger invisible circle sits on top of each point purely to catch hover — the native
-    // <title> element gives a real browser tooltip with the exact number and date, no JS needed.
     return `<path d="${d}" fill="none" stroke="${s.color}" stroke-width="2.2"></path>
-      ${s.values.map((v,i)=>`<circle cx="${xOf(i).toFixed(1)}" cy="${yOf(v).toFixed(1)}" r="2.6" fill="${s.color}"></circle>
-        <circle cx="${xOf(i).toFixed(1)}" cy="${yOf(v).toFixed(1)}" r="9" fill="transparent" style="cursor:default"><title>${esc(s.label)} · ${esc(labels[i])}: ${v}</title></circle>`).join('')}`;
+      ${s.values.map((v,i)=>`<circle cx="${xOf(i).toFixed(1)}" cy="${yOf(v).toFixed(1)}" r="2.6" fill="${s.color}" data-pt="${i}"></circle>`).join('')}`;
   }).join('');
   const xLabels=labels.map((l,i)=>`<text x="${xOf(i).toFixed(1)}" y="${H+2}" font-size="9" font-family="monospace" fill="#6A6383" text-anchor="${i===0?'start':i===labels.length-1?'end':'middle'}">${esc(l)}</text>`).join('');
   const legend=series.map(s=>`<button class="linelegend ${hiddenKeys.has(s.key)?'off':''}" data-linekey="${esc(s.key)}" style="--lc:${s.color}">
     <span class="dot" style="background:${s.color}"></span>${esc(s.label)}</button>`).join('');
-  return `<svg viewBox="0 0 ${W} ${H+14}" style="width:100%;height:auto" preserveAspectRatio="xMidYMid meet">${lines}${xLabels}</svg>
+  // One invisible full-height hit zone per data point (a whole column, not a single pixel-
+  // precise dot) — hovering anywhere near that date shows every visible series' value for it
+  // at once in a tooltip that follows the cursor, instead of needing to land exactly on one
+  // line's tiny point to see only that line's number.
+  const colWidth=labels.length>1?step:W;
+  const hitZones=labels.map((l,i)=>{
+    const x=Math.max(0,xOf(i)-colWidth/2);
+    return `<rect class="chart-hitzone" x="${x.toFixed(1)}" y="0" width="${colWidth.toFixed(1)}" height="${H}" fill="transparent"
+      data-ptindex="${i}" data-ptlabel="${esc(l)}"></rect>`;
+  }).join('');
+  const dataAttr=`data-series='${esc(JSON.stringify(visible.map(s=>({label:s.label,color:s.color,values:s.values}))))}'`;
+  return `<div class="chartwrap" style="position:relative">
+    <svg viewBox="0 0 ${W} ${H+14}" style="width:100%;height:auto;display:block" preserveAspectRatio="xMidYMid meet" ${dataAttr}>
+      ${lines}${xLabels}${hitZones}
+    </svg>
+    <div class="chart-tooltip" style="display:none"></div>
+    </div>
     <div class="linelegendrow">${legend}</div>`;
 }
 const targetOf=m=>Number(S.settings.targets[m]||S.settings.defaultTarget||0);
@@ -2579,9 +2618,19 @@ function moneyByCompanySection(){
   const fyOptions=[];{const cy=currentFY();const startY=Number(cy.split('-')[0]);
     for(let k=1;k>=-2;k--)fyOptions.push((startY+k)+'-'+String(startY+k+1).slice(-2));}
   const rows=S.companies.map(c=>{
-    const leadsForCo=S.leads.filter(l=>l.companyId===c.id);
-    const projects=leadsForCo.filter(isProject);
-    const invForCo=S.invoices.filter(i=>i.companyId===c.id&&i.type==='tax');
+    // Single source of truth: everything here is derived from the company's OWN invoices,
+    // not a separately-filtered lead list. Previously "projects shown" came from leads whose
+    // companyId matched AND passed isProject(), while "received" came from payments matched
+    // through invoices' companyId — two independent filters that could silently disagree if
+    // a lead's companyId ever drifted from its invoice's companyId, which is exactly what
+    // caused a payment to show under a company with no matching project underneath it.
+    const invForCo=S.invoices.filter(i=>i.companyId===c.id&&i.type==='tax'&&i.status!=='cancelled'&&i.status!=='denied');
+    const leadIdsWithInvoice=new Set(invForCo.map(i=>i.leadId).filter(Boolean));
+    // Also include any lead directly billed to this company even if no tax invoice exists yet
+    // (still a quotation, or a lead marked a project by an advance payment with no invoice) —
+    // this is what makes an expanded row show every real project, not just invoiced ones.
+    S.leads.forEach(l=>{if(l.companyId===c.id&&isProject(l))leadIdsWithInvoice.add(l.id);});
+    const projects=[...leadIdsWithInvoice].map(id=>leadOf(id)).filter(Boolean);
     const invInFY=invForCo.filter(i=>i.date>=bounds.from&&i.date<=bounds.to);
     const paidInFY=S.payments.filter(p=>{const inv=S.invoices.find(x=>x.id===p.invoiceId);
       return inv&&inv.companyId===c.id&&p.date>=bounds.from&&p.date<=bounds.to;})
@@ -2962,7 +3011,6 @@ function vTeam(){
   const myFollowUpsOverdue=L.filter(l=>l.assignedTo===me.username&&l.followUp&&l.followUp<today()&&!DEAD.includes(l.stage));
   const myFollowUpsUpcoming=L.filter(l=>l.assignedTo===me.username&&l.followUp&&l.followUp>today()&&l.followUp<=new Date(Date.now()+7*864e5).toISOString().slice(0,10)&&!DEAD.includes(l.stage))
     .sort((a,b)=>a.followUp.localeCompare(b.followUp));
-  const queueTop=buildPriorityQueue(L);
   // Checklist items with a scheduled date show up alongside lead follow-ups in the same
   // overdue/today/upcoming buckets — a reminder is a reminder, whether it's tied to a lead
   // or something you added yourself.
@@ -2974,16 +3022,6 @@ function vTeam(){
     <div style="flex:0 0 auto;display:flex;gap:6px"><button class="btn sm green" data-cldone="${c.id}">✓ Done</button></div></div>`;
   return `<div class="topbar"><div><h1>Team Work &amp; Follow-ups</h1><p class="sub">Everyone's leads, projects and collections in one place.</p></div><div class="spacer"></div>
     ${staffLocked()?'':`<select id="teamPerson"><option value="">Everyone</option>${people.map(t=>`<option value="${esc(t.username)}"${teamFilt.person===t.username?' selected':''}>${esc(t.name)}</option>`).join('')}</select>`}</div>
-  ${queueTop&&queueTop.length?`<div class="card" style="margin-bottom:12px;border-left:3px solid var(--pink)"><h2 style="display:flex;align-items:center;gap:8px">${AICON.clock} Do these first</h2>
-    <p class="sub" style="margin-bottom:8px">Overdue follow-ups, hot quotations gone quiet, and payment defaults — combined and ranked so nothing waits on you unnoticed.</p>
-    ${queueTop.map(({l,reason,kind})=>`<div class="row" style="align-items:center;border-bottom:1px solid var(--line);padding:8px 0">
-      <div style="flex:2;min-width:130px"><b data-lead="${l.id}" style="cursor:pointer">${esc(l.name)}</b>
-        <span class="pill ${kind==='default'?'r':kind==='quote'?'a':'n'}">${esc(reason)}</span>
-        <div class="eyebrow">${esc(leadSvcNames(l)||l.stage)}</div></div>
-      <div style="flex:0 0 auto;display:flex;gap:6px">${l.phone?`<a class="btn sm ghost" href="${tel(l.phone)}">${ICON_CALL} Call</a>`:''}
-      <button class="btn sm" data-lead="${l.id}">Open</button>
-      <button class="btn sm green" data-queuedone="${l.id}" data-queuekind="${kind}" title="Done for today">✓ Done for today</button></div></div>`).join('')}
-  </div>`:''}
   <div class="card" style="margin-bottom:14px;border-left:3px solid var(--accent)"><h2 style="display:flex;align-items:center;gap:8px">${AICON.clock} Your follow-ups</h2>
     ${(myFollowUpsOverdue.length||myClOverdue.length)?`<div class="eyebrow" style="color:var(--bad);margin-bottom:4px">${myFollowUpsOverdue.length+myClOverdue.length} overdue</div>
       ${myFollowUpsOverdue.map(x=>rowMini(x,'was due '+fmtD(x.followUp),true)).join('')}${myClOverdue.map(c=>clRow(c,'was due '+fmtD(c.date))).join('')}`:''}
