@@ -396,6 +396,7 @@ const DEFAULTS=()=>({
   companies:DEFAULT_COMPANIES(),
   notices:[],
   checklists:[],
+  tombstones:[],
   settings:{api:'https://script.google.com/macros/s/AKfycbz-IkoDNv4iZbdYVBmjWIfmANROWoGUBVSyQr-MfonUIQ1CxUrygbr3B7FmAeH4YsMivw/exec',sheetUrl:'https://docs.google.com/spreadsheets/d/1BnjBv5c2x2bdKv50d985D_GVTU4NnEen_6MBKDn_-dY/edit',
     gstRate:18,dueDays:7,ownerName:'',ownerEmail:'',brand:PRESETS['Get Set Startup'],localHash:'',localSalt:'',localName:'Admin',
     perms:{},targets:{},defaultTarget:0,defaultTerms:'1) Advance 50%\\n2) 25% on first draft, Balance 25% on completion\\n3) Delivery in approx. 10 working days(s)\\n4) 6 Months Support & Revision Period',
@@ -431,7 +432,20 @@ let S=DEFAULTS(),route='dash',me=null,syncState='off',lastSync='';
 // concurrent changes to both survive. This merges record-by-record (matched by id) instead,
 // keeping whichever copy of each individual record was touched more recently, so a lead added
 // on one device and a notice added on another can both survive regardless of sync order.
-function mergeById(localArr,remoteArr,timeField){
+//
+// CRITICAL: a plain by-id merge like this can add or update a record across devices, but it
+// has NO way to represent "this record was deleted" — a deleted item just isn't in the local
+// array anymore, so the merge never even considers it and the server's old copy silently wins,
+// undoing every deletion, every time. That's what was happening to removed notices.
+//
+// The fix: deletions go in a separate, tiny "tombstones" list (id + when-deleted), completely
+// apart from the real record arrays — so a deleted item is REMOVED immediately from this
+// device's own array (nothing anywhere in the app ever has to know or check for a "_deleted"
+// flag), while the tombstone itself travels through the exact same merge-by-id logic as
+// everything else. On every merge, any record whose id appears in the tombstone list (and
+// whose tombstone is newer than the record's own last edit) gets stripped from the final
+// result — so the deletion propagates to every device instead of a stale copy reviving it.
+function mergeById(localArr,remoteArr,timeField,tombstones){
   timeField=timeField||'updatedAt';
   const byId={};
   (remoteArr||[]).forEach(r=>{if(r&&r.id)byId[r.id]=r;});
@@ -445,7 +459,25 @@ function mergeById(localArr,remoteArr,timeField){
     const rt=new Date(timeOf(existing)).getTime();
     if(lt>=rt)byId[l.id]=l;
   });
-  return Object.values(byId);
+  let result=Object.values(byId);
+  if(tombstones&&tombstones.length){
+    const tsById={};tombstones.forEach(t=>{tsById[t.id]=Math.max(tsById[t.id]||0,new Date(t.at).getTime());});
+    const timeOf=r=>r[timeField]||r.updatedAt||r.savedAt||r.at||r.createdAt||r.date||0;
+    result=result.filter(r=>{
+      const tsTime=tsById[r.id];
+      if(tsTime===undefined)return true;
+      return new Date(timeOf(r)).getTime()>tsTime; // only survives if genuinely edited AFTER the deletion — otherwise the deletion wins
+    });
+  }
+  return result;
+}
+// Records a deletion as a tombstone (so it can sync and propagate) AND removes the record from
+// the given array immediately, so this device's own UI reflects the deletion right away without
+// any read path anywhere needing to know tombstones exist.
+function tombstoneAndRemove(S,collection,id){
+  S.tombstones=S.tombstones||[];
+  S.tombstones.push({id,collection,at:new Date().toISOString(),by:me?me.username:''});
+  if(S[collection])S[collection]=S[collection].filter(x=>x.id!==id);
 }
 // Same idea for simple string arrays like tags — union of both, minus anything explicitly
 // deleted (tracked in settings.removedTags), so a tag added on one device and a deletion made
@@ -459,14 +491,27 @@ function mergeTags(localTags,remoteTags,removed){
 function mergeServerData(remote){
   // remote is the server's data; S is still this device's current local copy at this point.
   const merged=Object.assign({},remote);
-  merged.leads=mergeById(S.leads,remote.leads,'updatedAt');
-  merged.invoices=mergeById(S.invoices,remote.invoices,'savedAt');
-  merged.payments=mergeById(S.payments,remote.payments);
-  merged.tickets=mergeById(S.tickets,remote.tickets);
-  merged.notices=mergeById(S.notices,remote.notices,'at');
-  merged.checklists=mergeById(S.checklists,remote.checklists,'updatedAt');
-  merged.expenses=mergeById(S.expenses,remote.expenses);
-  merged.sources=mergeById(S.sources,remote.sources);
+  // Tombstones merge first, and simply — union of both lists, deduplicated by id+collection,
+  // keeping the earliest deletion time if the same thing was somehow deleted twice. Every
+  // other collection's merge is then handed this combined list so a deletion made on EITHER
+  // device (not just this one) correctly wins over a stale copy of that record.
+  const tsKey=t=>t.collection+':'+t.id;
+  const tsSeen=new Map();
+  [...(S.tombstones||[]),...(remote.tombstones||[])].forEach(t=>{
+    const k=tsKey(t);const existing=tsSeen.get(k);
+    if(!existing||new Date(t.at)<new Date(existing.at))tsSeen.set(k,t);
+  });
+  const allTombstones=[...tsSeen.values()];
+  const tsFor=coll=>allTombstones.filter(t=>t.collection===coll);
+  merged.tombstones=allTombstones.slice(-2000); // keep this from growing forever
+  merged.leads=mergeById(S.leads,remote.leads,'updatedAt',tsFor('leads'));
+  merged.invoices=mergeById(S.invoices,remote.invoices,'savedAt',tsFor('invoices'));
+  merged.payments=mergeById(S.payments,remote.payments,'updatedAt',tsFor('payments'));
+  merged.tickets=mergeById(S.tickets,remote.tickets,'updatedAt',tsFor('tickets'));
+  merged.notices=mergeById(S.notices,remote.notices,'at',tsFor('notices'));
+  merged.checklists=mergeById(S.checklists,remote.checklists,'updatedAt',tsFor('checklists'));
+  merged.expenses=mergeById(S.expenses,remote.expenses,'updatedAt',tsFor('expenses'));
+  merged.sources=mergeById(S.sources,remote.sources,'updatedAt',tsFor('sources'));
   const removedTags=[...new Set([...(S.settings&&S.settings.removedTags||[]),...(remote.settings&&remote.settings.removedTags||[])])];
   merged.tags=mergeTags(S.tags,remote.tags,removedTags);
   merged.settings=Object.assign({},remote.settings,{removedTags});
@@ -753,6 +798,7 @@ function migrate(){
   S.sources=S.sources&&S.sources.length?S.sources:[{id:uid('src'),kind:'sheet',name:'Primary Google Sheet',url:S.settings.sheetUrl||''}];
   S.notices=S.notices||[];
   S.checklists=S.checklists||[];
+  S.tombstones=S.tombstones||[];
   S.settings.stageOrder=S.settings.stageOrder&&S.settings.stageOrder.length?S.settings.stageOrder:OPEN_STAGES.slice();
   S.settings.customStages=S.settings.customStages||[];
   S.settings.logTypes=S.settings.logTypes&&S.settings.logTypes.length?S.settings.logTypes:['Call','WhatsApp','Email','Meeting','Note'];
@@ -1027,12 +1073,17 @@ function render(){
   const rt=$('#repTo');rt&&(rt.onchange=e=>{reportsFilt.to=e.target.value;render();});
   const rtag=$('#repTag');rtag&&(rtag.onchange=e=>{reportsFilt.tag=e.target.value;render();});
   const rclear=$('#repClear');rclear&&(rclear.onclick=()=>{reportsFilt={from:'',to:'',tag:''};render();});
-  const fdk=$('#fakeDrilldownKpi');fdk&&(fdk.onclick=()=>{
+  document.querySelectorAll('[data-trendgran]').forEach(el=>el.onclick=()=>{trendGranularity=el.dataset.trendgran;render();});
+  const analyticsFilteredLeads=()=>{
     let L=staffLocked()?visibleLeads():S.leads;
-    if(reportsFilt.from)L=L.filter(l=>l.createdAt.slice(0,10)>=reportsFilt.from);
-    if(reportsFilt.to)L=L.filter(l=>l.createdAt.slice(0,10)<=reportsFilt.to);
-    if(reportsFilt.tag)L=L.filter(l=>l.tag===reportsFilt.tag);
-    openFakeDrilldown(L);});
+    if(reportsFilt&&reportsFilt.from)L=L.filter(l=>l.createdAt.slice(0,10)>=reportsFilt.from);
+    if(reportsFilt&&reportsFilt.to)L=L.filter(l=>l.createdAt.slice(0,10)<=reportsFilt.to);
+    if(reportsFilt&&reportsFilt.tag)L=L.filter(l=>l.tag===reportsFilt.tag);
+    return L;
+  };
+  const fdk=$('#fakeDrilldownKpi');fdk&&(fdk.onclick=()=>openFakeDrilldown(analyticsFilteredLeads()));
+  const cdk=$('#convertedDrilldownKpi');cdk&&(cdk.onclick=()=>openConvertedDrilldown(analyticsFilteredLeads()));
+  const fldk=$('#failedDrilldownKpi');fldk&&(fldk.onclick=()=>openFailedDrilldown(analyticsFilteredLeads()));
   document.querySelectorAll('[data-linekey]').forEach(el=>el.onclick=()=>{
     const k=el.dataset.linekey;
     trendChartHidden.has(k)?trendChartHidden.delete(k):trendChartHidden.add(k);
@@ -1127,7 +1178,8 @@ function spark(labels,vals,money){
   return `<svg class="spark" viewBox="0 0 ${W} ${H+22}" preserveAspectRatio="none">
     <path d="${d} L ${W} ${H} L 0 ${H} Z" fill="var(--brand-soft)"></path>
     <path d="${d}" fill="none" stroke="var(--brand)" stroke-width="2"></path>
-    ${pts.map(p=>`<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="3" fill="var(--accent)"></circle>`).join('')}
+    ${pts.map((p,i)=>`<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="3" fill="var(--accent)"></circle>
+      <circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="10" fill="transparent"><title>${esc(new Date(labels[i]+'-01').toLocaleDateString('en-IN',{month:'short',year:'numeric'}))}: ${money?inr(vals[i]):vals[i]}</title></circle>`).join('')}
     ${labels.map((l,i)=>`<text x="${(i*step).toFixed(1)}" y="${H+16}" font-size="9" font-family="monospace" fill="#6A6383" text-anchor="${i===0?'start':i===labels.length-1?'end':'middle'}">${new Date(l+'-01').toLocaleDateString('en-IN',{month:'short'})}</text>`).join('')}
   </svg><div class="legend"><span>Peak: ${money?short(max):max}</span><span>Total: ${money?short(vals.reduce((a,b)=>a+b,0)):vals.reduce((a,b)=>a+b,0)}</span></div>`;
 }
@@ -1141,16 +1193,19 @@ function multiLineChart(labels,series,hiddenKeys){
   const visible=series.filter(s=>!hiddenKeys.has(s.key));
   const W=560,H=190,pad=8;
   const allVals=visible.flatMap(s=>s.values);
-  const max=Math.max(1,...allVals);
+  const max=Math.max(1,...allVals,1);
   const step=labels.length>1?(W-pad*2)/(labels.length-1):0;
   const yOf=v=>H-pad-(v/max)*(H-pad*2-14);
   const xOf=i=>pad+i*step;
   const lines=visible.map(s=>{
     const d=s.values.map((v,i)=>(i?'L':'M')+xOf(i).toFixed(1)+' '+yOf(v).toFixed(1)).join(' ');
+    // A larger invisible circle sits on top of each point purely to catch hover — the native
+    // <title> element gives a real browser tooltip with the exact number and date, no JS needed.
     return `<path d="${d}" fill="none" stroke="${s.color}" stroke-width="2.2"></path>
-      ${s.values.map((v,i)=>`<circle cx="${xOf(i).toFixed(1)}" cy="${yOf(v).toFixed(1)}" r="2.6" fill="${s.color}"></circle>`).join('')}`;
+      ${s.values.map((v,i)=>`<circle cx="${xOf(i).toFixed(1)}" cy="${yOf(v).toFixed(1)}" r="2.6" fill="${s.color}"></circle>
+        <circle cx="${xOf(i).toFixed(1)}" cy="${yOf(v).toFixed(1)}" r="9" fill="transparent" style="cursor:default"><title>${esc(s.label)} · ${esc(labels[i])}: ${v}</title></circle>`).join('')}`;
   }).join('');
-  const xLabels=labels.map((l,i)=>`<text x="${xOf(i).toFixed(1)}" y="${H+2}" font-size="9" font-family="monospace" fill="#6A6383" text-anchor="${i===0?'start':i===labels.length-1?'end':'middle'}">${new Date(l+'-01').toLocaleDateString('en-IN',{month:'short'})}</text>`).join('');
+  const xLabels=labels.map((l,i)=>`<text x="${xOf(i).toFixed(1)}" y="${H+2}" font-size="9" font-family="monospace" fill="#6A6383" text-anchor="${i===0?'start':i===labels.length-1?'end':'middle'}">${esc(l)}</text>`).join('');
   const legend=series.map(s=>`<button class="linelegend ${hiddenKeys.has(s.key)?'off':''}" data-linekey="${esc(s.key)}" style="--lc:${s.color}">
     <span class="dot" style="background:${s.color}"></span>${esc(s.label)}</button>`).join('');
   return `<svg viewBox="0 0 ${W} ${H+14}" style="width:100%;height:auto" preserveAspectRatio="xMidYMid meet">${lines}${xLabels}</svg>
@@ -1214,23 +1269,13 @@ function dismissQueueItem(leadId,kind){
   const s=queueDismissedSet();s.add(leadId+':'+kind);
   try{localStorage.setItem(queueDismissKey(),JSON.stringify([...s]));}catch(e){}
 }
-function vDash(){
-  const L=visibleLeads(),mine=L.filter(x=>x.assignedTo===me.username&&OPEN_STAGES.includes(x.stage));
-  const openL=L.filter(x=>OPEN_STAGES.includes(x.stage));
-  const forecastable=L.filter(l=>['Interested','Quotation Sent'].includes(l.stage));
-  const forecast=forecastable.reduce((s,l)=>s+leadDealValue(l.id)*(PROB[l.stage]||0),0);
-  const got=recognisedIn(month()),tgt=targetOf(month());
-  const pending=L.filter(isProject).reduce((s,l)=>s+leadBalance(l.id),0);
-  const hot=L.filter(l=>OPEN_STAGES.includes(l.stage)).map(l=>({l,s:score(l)})).sort((a,b)=>b.s-a.s).slice(0,6);
-  const due=L.filter(x=>x.followUp&&x.followUp<=today()&&OPEN_STAGES.includes(x.stage));
-  const acts=L.filter(l=>nextAction(l)&&(filtMine(l))).slice(0,8);
-  const tk=S.tickets.filter(t=>!['Resolved','Closed'].includes(t.status));
-
-  // Priority queue: everything that genuinely needs a human decision today, ranked into one
-  // list instead of scattered across three separate cards. Three sources feed it —
-  // overdue follow-ups (a promise that's now late), hot quotations gone quiet (money on the
-  // table, cooling off), and flagged payment defaults (money already owed, going stale).
-  // Each gets a reason and a rough urgency score so the most pressing items sort to the top.
+// Priority queue: everything that genuinely needs a human decision today, ranked into one
+// list instead of scattered across three separate cards. Three sources feed it —
+// overdue follow-ups (a promise that's now late), hot quotations gone quiet (money on the
+// table, cooling off), and flagged payment defaults (money already owed, going stale).
+// Each gets a reason and a rough urgency score so the most pressing items sort to the top.
+// Shared between Dashboard and Team Work so there's only one place this logic lives.
+function buildPriorityQueue(L){
   const queue=[];
   L.filter(l=>l.followUp&&l.followUp<=today()&&!DEAD.includes(l.stage)&&filtMine(l)).forEach(l=>{
     const lateDays=Math.max(0,days(l.followUp));
@@ -1246,7 +1291,19 @@ function vDash(){
       queue.push({l,reason:'Payment default'+(bal>0.5?' — '+short(bal):''),urgency:80,kind:'default'});
     });
   }
-  const queueTop=queue.filter(q=>!isQueueDismissedToday(q.l.id,q.kind)).sort((a,b)=>b.urgency-a.urgency).slice(0,8);
+  return queue.filter(q=>!isQueueDismissedToday(q.l.id,q.kind)).sort((a,b)=>b.urgency-a.urgency).slice(0,8);
+}
+function vDash(){
+  const L=visibleLeads(),mine=L.filter(x=>x.assignedTo===me.username&&OPEN_STAGES.includes(x.stage));
+  const openL=L.filter(x=>OPEN_STAGES.includes(x.stage));
+  const forecastable=L.filter(l=>['Interested','Quotation Sent'].includes(l.stage));
+  const forecast=forecastable.reduce((s,l)=>s+leadDealValue(l.id)*(PROB[l.stage]||0),0);
+  const got=recognisedIn(month()),tgt=targetOf(month());
+  const pending=L.filter(isProject).reduce((s,l)=>s+leadBalance(l.id),0);
+  const hot=L.filter(l=>OPEN_STAGES.includes(l.stage)).map(l=>({l,s:score(l)})).sort((a,b)=>b.s-a.s).slice(0,6);
+  const due=L.filter(x=>x.followUp&&x.followUp<=today()&&OPEN_STAGES.includes(x.stage));
+  const acts=L.filter(l=>nextAction(l)&&(filtMine(l))).slice(0,8);
+  const tk=S.tickets.filter(t=>!['Resolved','Closed'].includes(t.status));
 
   // interested vs total
   const interestedStages=['Interested','Quotation Sent','Advance Paid','Completed'];
@@ -1278,16 +1335,6 @@ function vDash(){
   return `${syncWarningBanner()}${inboxBanner()}<div class="topbar"><div><h1>Hello, ${esc((me.name||'').split(' ')[0])}</h1>
     <p class="sub">${new Date().toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long'})} · ${mine.length} open leads with you</p></div>
     <div class="spacer"></div><button class="btn gold" data-go="leads">+ Add leads</button></div>
-  ${queueTop.length?`<div class="card" style="margin-bottom:12px;border-left:3px solid var(--pink)"><h2 style="display:flex;align-items:center;gap:8px">${AICON.clock} Priority queue — do these first</h2>
-    <p class="sub" style="margin-bottom:8px">Overdue follow-ups, hot quotations gone quiet, and payment defaults — combined and ranked so nothing waits on you unnoticed.</p>
-    ${queueTop.map(({l,reason,kind})=>`<div class="row" style="align-items:center;border-bottom:1px solid var(--line);padding:8px 0">
-      <div style="flex:2;min-width:130px"><b data-lead="${l.id}" style="cursor:pointer">${esc(l.name)}</b>
-        <span class="pill ${kind==='default'?'r':kind==='quote'?'a':'n'}">${esc(reason)}</span>
-        <div class="eyebrow">${esc(leadSvcNames(l)||l.stage)}</div></div>
-      <div style="flex:0 0 auto;display:flex;gap:6px">${l.phone?`<a class="btn sm ghost" href="${tel(l.phone)}">${ICON_CALL} Call</a>`:''}
-      <button class="btn sm" data-lead="${l.id}">Open</button>
-      <button class="btn sm green" data-queuedone="${l.id}" data-queuekind="${kind}" title="Done for today">✓ Done for today</button></div></div>`).join('')}
-  </div>`:''}
   ${hideMoney?'':`<div class="card" style="margin-bottom:12px"><h2>This month's target</h2>
     <div class="row" style="align-items:baseline"><div class="num" style="font-size:24px;font-weight:600">${inr(got)}</div>
       <div class="sub" style="text-align:right">${tgt?'of '+inr(tgt)+' · '+Math.round(got/tgt*100)+'%':'no target set'}</div></div>
@@ -1336,7 +1383,7 @@ const filtMine=l=>!me||l.assignedTo===me.username||perms()==='ADMIN';
 const scorePill=l=>{const n=score(l),b=band(n);return `<span class="score ${b[0]}">${b[1]} ${n}</span>`;};
 
 /* ---------- leads ---------- */
-let filt={q:'',stage:'',svc:'',assignee:'all',sort:'assigned',source:'',tag:'',showDead:false,priority:false,uncalled:false};
+let filt={q:'',stage:'',svc:'',assignee:'all',sort:'updated',source:'',tag:'',showDead:false,priority:false,uncalled:false};
 function leadRows(scope){
   let rows=visibleLeads().filter(l=>scope==='projects'?isProject(l):!isProject(l));
   const q=filt.q.toLowerCase();
@@ -1357,7 +1404,7 @@ function leadRows(scope){
     name:(a,b)=>a.name.localeCompare(b.name),
     value:(a,b)=>leadFee(b)-leadFee(a),
     service:(a,b)=>leadSvcNames(a).localeCompare(leadSvcNames(b))}[filt.sort];
-  return rows.sort((a,b)=>(b.priority?1:0)-(a.priority?1:0)||k(a,b));
+  return rows.sort(k);
 }
 const lastUpd=l=>{const u=(l.statusUpdates||[]);return u.length?u[u.length-1].at:l.createdAt;};
 function filterBar(scope){
@@ -1373,7 +1420,7 @@ function filterBar(scope){
       ${(S.settings.tagBundles||[]).length?`<optgroup label="Bundles">${(S.settings.tagBundles||[]).map(b=>`<option value="bundle:${esc(b.code)}"${filt.tag==='bundle:'+b.code?' selected':''}>${esc(b.code)} (${b.tags.join('+')})</option>`).join('')}</optgroup>`:''}</select>
     <select id="fstage"><option value="">All stages</option>${(scope==='projects'?['Advance Paid','Completed']:STAGES).concat(scope==='projects'?[]:(S.settings.customStages||[])).map(s=>`<option${filt.stage===s?' selected':''}>${s}</option>`).join('')}</select>
     <select id="fsvc"><option value="">All services</option>${S.services.map(s=>`<option value="${s.code}"${filt.svc===s.code?' selected':''}>${esc(s.name)}</option>`).join('')}</select>
-    <select id="fsort">${[['assigned','Latest assigned'],['updated','Latest update'],['score','Hottest first'],['newest','Newest added'],['name','Name A–Z'],['value','Highest value'],['service','Service']]
+    <select id="fsort">${[['updated','Latest update'],['assigned','Latest assigned'],['score','Hottest first'],['newest','Newest added'],['name','Name A–Z'],['value','Highest value'],['service','Service']]
       .map(([v,t])=>`<option value="${v}"${filt.sort===v?' selected':''}>${t}</option>`).join('')}</select>
     <button class="btn sm ${filt.showDead?'':'ghost'}" id="fdead" style="flex:0 0 auto">${filt.showDead?'Hiding nothing':'Dropped hidden'}</button>
     <button class="btn sm ${filt.priority?'gold':'ghost'}" id="fpriority" style="flex:0 0 auto">★ Priority</button>
@@ -1822,7 +1869,7 @@ function openLead(id){
   const nt=document.querySelector('[data-newtk]');nt&&(nt.onclick=()=>editTicket(null,id));
   const iss=document.querySelector('[data-issue]');iss&&(iss.onclick=()=>{togglePaymentIssue(id);openLead(id);});
   const dl=document.querySelector('[data-del]');dl&&(dl.onclick=()=>{if(confirm('Delete '+leadOf(id).name+'?')){
-    audit('Deleted lead '+leadOf(id).name);S.leads=S.leads.filter(x=>x.id!==id);save();closeLayer(true);render();}});
+    audit('Deleted lead '+leadOf(id).name);tombstoneAndRemove(S,'leads',id);save();closeLayer(true);render();}});
   const rm=document.querySelector('[data-remind]');rm&&(rm.onclick=()=>sendReminder(id));
 }
 function togglePaymentIssue(id){
@@ -2038,7 +2085,7 @@ function editTicket(id,leadId){
     audit((isNew?'Raised':'Updated')+' ticket: '+t.title);save();closeLayer(true);render();toast('Ticket saved');};
   const tn=$('#tkNote');tn&&(tn.onkeydown=e=>{if(e.key==='Enter'&&e.target.value.trim()){
     (t.updates=t.updates||[]).push({at:new Date().toISOString(),by:me.username,text:e.target.value.trim()});save();editTicket(t.id);}});
-  const td=$('#tkDel');td&&(td.onclick=()=>{if(confirm('Delete this ticket?')){S.tickets=S.tickets.filter(x=>x.id!==t.id);save();closeLayer(true);render();}});
+  const td=$('#tkDel');td&&(td.onclick=()=>{if(confirm('Delete this ticket?')){tombstoneAndRemove(S,'tickets',t.id);save();closeLayer(true);render();}});
 }
 /* ---------- invoices ---------- */
 let invFilt={kind:'',stage:''};
@@ -2320,8 +2367,11 @@ function editInvoice(id,seed){
       inv.type='tax';inv.number=nn.number;S.seq[nn.key]=nn.n;inv.date=today();
       if(!S.invoices.find(i=>i.id===inv.id))S.invoices.push(inv);save();draw2();toast('Now a tax invoice');});
     const di=$('#delInv');di&&(di.onclick=()=>{if(confirm('Delete '+inv.number+'?')){audit('Deleted '+inv.number);
-      S.invoices=S.invoices.filter(i=>i.id!==inv.id);S.payments=S.payments.filter(p=>p.invoiceId!==inv.id);save();closeLayer(true);render();}});
-    document.querySelectorAll('[data-rmpay]').forEach(b=>b.onclick=()=>{S.payments=S.payments.filter(p=>p.id!==b.dataset.rmpay);save();draw2();});
+      const tiedPayments=S.payments.filter(p=>p.invoiceId===inv.id);
+      tombstoneAndRemove(S,'invoices',inv.id);
+      tiedPayments.forEach(p=>tombstoneAndRemove(S,'payments',p.id));
+      save();closeLayer(true);render();}});
+    document.querySelectorAll('[data-rmpay]').forEach(b=>b.onclick=()=>{tombstoneAndRemove(S,'payments',b.dataset.rmpay);save();draw2();});
   };
   draw2();
 }
@@ -2912,14 +2962,34 @@ function vTeam(){
   const myFollowUpsOverdue=L.filter(l=>l.assignedTo===me.username&&l.followUp&&l.followUp<today()&&!DEAD.includes(l.stage));
   const myFollowUpsUpcoming=L.filter(l=>l.assignedTo===me.username&&l.followUp&&l.followUp>today()&&l.followUp<=new Date(Date.now()+7*864e5).toISOString().slice(0,10)&&!DEAD.includes(l.stage))
     .sort((a,b)=>a.followUp.localeCompare(b.followUp));
+  const queueTop=buildPriorityQueue(L);
+  // Checklist items with a scheduled date show up alongside lead follow-ups in the same
+  // overdue/today/upcoming buckets — a reminder is a reminder, whether it's tied to a lead
+  // or something you added yourself.
+  const myClToday=myChecklist().filter(c=>c.date&&c.date===today());
+  const myClOverdue=myChecklist().filter(c=>c.date&&c.date<today());
+  const myClUpcoming=myChecklist().filter(c=>c.date&&c.date>today()&&c.date<=new Date(Date.now()+7*864e5).toISOString().slice(0,10)).sort((a,b)=>a.date.localeCompare(b.date));
+  const clRow=(c,note)=>`<div class="row" style="align-items:center;border-bottom:1px solid var(--line);padding:7px 0">
+    <div style="flex:2;min-width:120px"><b>${esc(c.text)}</b><div class="eyebrow">Checklist item · ${esc(note)}</div></div>
+    <div style="flex:0 0 auto;display:flex;gap:6px"><button class="btn sm green" data-cldone="${c.id}">✓ Done</button></div></div>`;
   return `<div class="topbar"><div><h1>Team Work &amp; Follow-ups</h1><p class="sub">Everyone's leads, projects and collections in one place.</p></div><div class="spacer"></div>
     ${staffLocked()?'':`<select id="teamPerson"><option value="">Everyone</option>${people.map(t=>`<option value="${esc(t.username)}"${teamFilt.person===t.username?' selected':''}>${esc(t.name)}</option>`).join('')}</select>`}</div>
+  ${queueTop&&queueTop.length?`<div class="card" style="margin-bottom:12px;border-left:3px solid var(--pink)"><h2 style="display:flex;align-items:center;gap:8px">${AICON.clock} Do these first</h2>
+    <p class="sub" style="margin-bottom:8px">Overdue follow-ups, hot quotations gone quiet, and payment defaults — combined and ranked so nothing waits on you unnoticed.</p>
+    ${queueTop.map(({l,reason,kind})=>`<div class="row" style="align-items:center;border-bottom:1px solid var(--line);padding:8px 0">
+      <div style="flex:2;min-width:130px"><b data-lead="${l.id}" style="cursor:pointer">${esc(l.name)}</b>
+        <span class="pill ${kind==='default'?'r':kind==='quote'?'a':'n'}">${esc(reason)}</span>
+        <div class="eyebrow">${esc(leadSvcNames(l)||l.stage)}</div></div>
+      <div style="flex:0 0 auto;display:flex;gap:6px">${l.phone?`<a class="btn sm ghost" href="${tel(l.phone)}">${ICON_CALL} Call</a>`:''}
+      <button class="btn sm" data-lead="${l.id}">Open</button>
+      <button class="btn sm green" data-queuedone="${l.id}" data-queuekind="${kind}" title="Done for today">✓ Done for today</button></div></div>`).join('')}
+  </div>`:''}
   <div class="card" style="margin-bottom:14px;border-left:3px solid var(--accent)"><h2 style="display:flex;align-items:center;gap:8px">${AICON.clock} Your follow-ups</h2>
-    ${myFollowUpsOverdue.length?`<div class="eyebrow" style="color:var(--bad);margin-bottom:4px">${myFollowUpsOverdue.length} overdue</div>
-      ${myFollowUpsOverdue.map(x=>rowMini(x,'was due '+fmtD(x.followUp),true)).join('')}`:''}
-    ${myFollowUpsToday.length?`<div class="eyebrow" style="margin:8px 0 4px">Today</div>${myFollowUpsToday.map(x=>rowMini(x,'due today',true)).join('')}`
-      :myFollowUpsOverdue.length?'':'<div class="empty">Nothing due today.</div>'}
-    ${myFollowUpsUpcoming.length?`<div class="eyebrow" style="margin:8px 0 4px">Next 7 days</div>${myFollowUpsUpcoming.map(x=>rowMini(x,fmtD(x.followUp),true)).join('')}`:''}
+    ${(myFollowUpsOverdue.length||myClOverdue.length)?`<div class="eyebrow" style="color:var(--bad);margin-bottom:4px">${myFollowUpsOverdue.length+myClOverdue.length} overdue</div>
+      ${myFollowUpsOverdue.map(x=>rowMini(x,'was due '+fmtD(x.followUp),true)).join('')}${myClOverdue.map(c=>clRow(c,'was due '+fmtD(c.date))).join('')}`:''}
+    ${(myFollowUpsToday.length||myClToday.length)?`<div class="eyebrow" style="margin:8px 0 4px">Today</div>${myFollowUpsToday.map(x=>rowMini(x,'due today',true)).join('')}${myClToday.map(c=>clRow(c,'due today')).join('')}`
+      :(myFollowUpsOverdue.length||myClOverdue.length)?'':'<div class="empty">Nothing due today.</div>'}
+    ${(myFollowUpsUpcoming.length||myClUpcoming.length)?`<div class="eyebrow" style="margin:8px 0 4px">Next 7 days</div>${myFollowUpsUpcoming.map(x=>rowMini(x,fmtD(x.followUp),true)).join('')}${myClUpcoming.map(c=>clRow(c,fmtD(c.date))).join('')}`:''}
   </div>
   ${personalChecklistCard()}
   ${noticesCard()}
@@ -2955,50 +3025,99 @@ function vTeam(){
     </tbody></table></div>${own.length>25?`<p class="sub" style="margin-top:8px">Showing latest 25 of ${own.length}.</p>`:''}</div>`;}).join('')}
   `;
 }
-let reportsFilt={from:'',to:'',tag:''};
-let trendChartHidden=new Set(),trendChartService='';
-function openFakeDrilldown(L){
-  const fakeLeads=L.filter(l=>l.stage==='Fake');
-  const byService={};fakeLeads.forEach(l=>{
+function openLeadCategoryDrilldown(L,filterFn,title){
+  const matched=L.filter(filterFn);
+  const byService={};matched.forEach(l=>{
     const svcs=(l.services||[]).length?(l.services||[]).map(s=>s.name):['(no service listed)'];
     svcs.forEach(s=>byService[s]=(byService[s]||0)+1);
   });
-  const bySource={};fakeLeads.forEach(l=>{const s=l.source||'Other';bySource[s]=(bySource[s]||0)+1;});
-  layer(`<div class="dhead"><div style="flex:1"><div class="eyebrow">Analytics</div><h1 style="font-size:19px">Fake / junk leads breakdown</h1>
-    <div class="sub">${fakeLeads.length} fake leads, filtered the same way as the Analytics page.</div></div><button class="x" data-close>✕</button></div>
+  const bySource={};matched.forEach(l=>{const s=l.source||'Other';bySource[s]=(bySource[s]||0)+1;});
+  layer(`<div class="dhead"><div style="flex:1"><div class="eyebrow">Analytics</div><h1 style="font-size:19px">${esc(title)}</h1>
+    <div class="sub">${matched.length} leads, filtered the same way as the Analytics page.</div></div><button class="x" data-close>✕</button></div>
   <div class="dbody">
     <div class="card"><h2>By service type</h2>
       ${Object.keys(byService).length?barsHTML(Object.entries(byService).sort((a,b)=>b[1]-a[1])):'<div class="empty">No services on file for these leads.</div>'}</div>
     <div class="card" style="margin-top:12px"><h2>By source channel</h2>
       ${Object.keys(bySource).length?barsHTML(Object.entries(bySource).sort((a,b)=>b[1]-a[1])):'<div class="empty">No leads to show.</div>'}</div>
-    <div class="card" style="margin-top:12px"><h2>All fake leads</h2>
-      ${fakeLeads.length?fakeLeads.slice(0,50).map(l=>`<div class="row click" data-lead="${l.id}" style="align-items:center;border-bottom:1px solid var(--line);padding:8px 0;cursor:pointer">
+    <div class="card" style="margin-top:12px"><h2>All leads</h2>
+      ${matched.length?matched.slice(0,50).map(l=>`<div class="row click" data-lead="${l.id}" style="align-items:center;border-bottom:1px solid var(--line);padding:8px 0;cursor:pointer">
         <div style="flex:2"><b>${esc(l.name)}</b><div class="eyebrow">${esc(leadSvcNames(l)||'—')} · ${esc(l.source||'—')} · ${fmtD(l.createdAt.slice(0,10))}</div></div></div>`).join('')
         :'<div class="empty">None.</div>'}
-      ${fakeLeads.length>50?`<p class="sub" style="margin-top:8px">Showing latest 50 of ${fakeLeads.length}.</p>`:''}</div>
+      ${matched.length>50?`<p class="sub" style="margin-top:8px">Showing latest 50 of ${matched.length}.</p>`:''}</div>
   </div>`,()=>render());
   document.querySelectorAll('[data-lead]').forEach(el=>el.onclick=e=>{e.stopPropagation();openLead(el.dataset.lead);});
 }
+function openFakeDrilldown(L){openLeadCategoryDrilldown(L,l=>l.stage==='Fake','Fake / junk leads breakdown');}
+function openConvertedDrilldown(L){openLeadCategoryDrilldown(L,l=>leadPaid(l.id)>0,'Converted leads breakdown');}
+function openFailedDrilldown(L){openLeadCategoryDrilldown(L,l=>['Lost','Not Interested'].includes(l.stage),'Failed leads breakdown');}
+let reportsFilt=null; // set on first use below, defaulting to the last 7 days
+let trendChartHidden=new Set(),trendChartService='',trendGranularity='day';
+// Generates bucket boundaries and labels for the chosen granularity across the given date
+// range — this is what makes the chart actually follow the date filter instead of always
+// showing a fixed last-6-months window regardless of what's picked.
+function trendBuckets(fromStr,toStr,granularity){
+  const from=new Date(fromStr+'T00:00:00'),to=new Date(toStr+'T00:00:00');
+  const buckets=[];
+  if(granularity==='day'){
+    for(let d=new Date(from);d<=to;d.setDate(d.getDate()+1)){
+      const key=d.toISOString().slice(0,10);
+      buckets.push({key,label:d.toLocaleDateString('en-IN',{day:'2-digit',month:'short'}),from:key,to:key});
+    }
+  }else if(granularity==='week'){
+    let d=new Date(from);
+    // align to the Monday on/before `from` so weeks read naturally
+    d.setDate(d.getDate()-((d.getDay()+6)%7));
+    while(d<=to){
+      const wkFrom=new Date(d),wkTo=new Date(d);wkTo.setDate(wkTo.getDate()+6);
+      const key=wkFrom.toISOString().slice(0,10);
+      buckets.push({key,label:wkFrom.toLocaleDateString('en-IN',{day:'2-digit',month:'short'}),from:key,to:wkTo.toISOString().slice(0,10)});
+      d.setDate(d.getDate()+7);
+    }
+  }else{ // month
+    let d=new Date(from.getFullYear(),from.getMonth(),1);
+    while(d<=to){
+      const key=d.toISOString().slice(0,7);
+      const monEnd=new Date(d.getFullYear(),d.getMonth()+1,0);
+      buckets.push({key,label:d.toLocaleDateString('en-IN',{month:'short',year:'2-digit'}),from:key+'-01',to:monEnd.toISOString().slice(0,10)});
+      d.setMonth(d.getMonth()+1);
+    }
+  }
+  return buckets;
+}
 function vReports(){
+  if(!reportsFilt){const wk=new Date();wk.setDate(wk.getDate()-6);
+    reportsFilt={from:wk.toISOString().slice(0,10),to:today(),tag:''};} // defaults to the last 7 days
   let L=staffLocked()?visibleLeads():S.leads;
   if(reportsFilt.from)L=L.filter(l=>l.createdAt.slice(0,10)>=reportsFilt.from);
   if(reportsFilt.to)L=L.filter(l=>l.createdAt.slice(0,10)<=reportsFilt.to);
   if(reportsFilt.tag)L=L.filter(l=>l.tag===reportsFilt.tag);
-  const mo=[];for(let k=5;k>=0;k--){const d=new Date();d.setMonth(d.getMonth()-k);mo.push(d.toISOString().slice(0,7));}
-  // Trend data for the top-of-page line chart: total/failed/interested/converted/fake per
-  // month, optionally narrowed to one service — computed from L (already respects the page's
-  // date-range and tag filters) so the chart and the KPIs below it never disagree.
+  // The chart now genuinely follows the date range and granularity picked above it, instead
+  // of always showing a fixed last-6-months window no matter what filter was set.
+  // If filters were cleared entirely (no from/to at all), fall back to a sensible 90-day
+  // window for the chart rather than collapsing to a single day — an empty date range means
+  // "show me everything," not "show me today."
+  const chartFrom=reportsFilt.from||(()=>{const d=new Date();d.setDate(d.getDate()-89);return d.toISOString().slice(0,10);})();
+  const chartTo=reportsFilt.to||today();
+  const buckets=trendBuckets(chartFrom,chartTo,trendGranularity);
+  const mo=buckets.map(b=>b.key); // kept for the "last 6 months" cards further down the page, computed separately below
   const trendSvcLeads=trendChartService?L.filter(l=>(l.services||[]).some(s=>s.name===trendChartService)):L;
+  const inBucket=(l,b)=>l.createdAt.slice(0,10)>=b.from&&l.createdAt.slice(0,10)<=b.to;
   const trendData={
-    total:mo.map(m=>trendSvcLeads.filter(l=>l.createdAt.slice(0,7)===m).length),
-    failed:mo.map(m=>trendSvcLeads.filter(l=>l.createdAt.slice(0,7)===m&&['Lost','Not Interested'].includes(l.stage)).length),
-    interested:mo.map(m=>trendSvcLeads.filter(l=>l.createdAt.slice(0,7)===m&&['Interested','Quotation Sent','Advance Paid','Completed'].includes(l.stage)).length),
-    converted:mo.map(m=>trendSvcLeads.filter(l=>l.createdAt.slice(0,7)===m&&leadPaid(l.id)>0).length),
-    fake:mo.map(m=>trendSvcLeads.filter(l=>l.createdAt.slice(0,7)===m&&l.stage==='Fake').length),
+    total:buckets.map(b=>trendSvcLeads.filter(l=>inBucket(l,b)).length),
+    failed:buckets.map(b=>trendSvcLeads.filter(l=>inBucket(l,b)&&['Lost','Not Interested'].includes(l.stage)).length),
+    interested:buckets.map(b=>trendSvcLeads.filter(l=>inBucket(l,b)&&['Interested','Quotation Sent','Advance Paid','Completed'].includes(l.stage)).length),
+    converted:buckets.map(b=>trendSvcLeads.filter(l=>inBucket(l,b)&&leadPaid(l.id)>0).length),
+    fake:buckets.map(b=>trendSvcLeads.filter(l=>inBucket(l,b)&&l.stage==='Fake').length),
   };
+  const trendLabels=buckets.map(b=>b.label);
   const allServiceNames=[...new Set(S.services.map(s=>s.name))];
-  const leadsBy=mo.map(m=>L.filter(l=>l.createdAt.slice(0,7)===m).length);
-  const collBy=mo.map(m=>collectedIn(m));
+  // The "last 6 months" cards further down the page (revenue, calls, leads-by-month) still
+  // use a fixed rolling 6-month window regardless of the analytics date filter — that's
+  // intentional, they're answering a different, longer-horizon question than the chart above.
+  const mo6=[];for(let k=5;k>=0;k--){const d=new Date();d.setMonth(d.getMonth()-k);mo6.push(d.toISOString().slice(0,7));}
+  const leadsBy=mo6.map(m=>L.filter(l=>l.createdAt.slice(0,7)===m).length);
+  const callsBy=mo6.map(m=>{let c=0;L.forEach(l=>(l.logs||[]).forEach(x=>{if(x.type==='Call'&&x.at.slice(0,7)===m)c++;}));return c;});
+  const collBy=mo6.map(m=>collectedIn(m));
   const quoted=L.filter(l=>['Quotation Sent','Advance Paid','Completed'].includes(l.stage)).length;
   const paidL=L.filter(l=>leadPaid(l.id)>0);
   const lost=L.filter(l=>['Lost','Not Interested'].includes(l.stage)).length,fake=L.filter(l=>l.stage==='Fake').length;
@@ -3018,7 +3137,7 @@ function vReports(){
   const openL=L.filter(l=>OPEN_STAGES.includes(l.stage));
   const forecastable=L.filter(l=>['Interested','Quotation Sent'].includes(l.stage));
   const weighted=forecastable.reduce((s,l)=>s+leadDealValue(l.id)*(PROB[l.stage]||0),0);
-  const last3=mo.slice(-3).map(m=>recognisedIn(m)),run=last3.reduce((a,b)=>a+b,0)/3;
+  const last3=mo6.slice(-3).map(m=>recognisedIn(m)),run=last3.reduce((a,b)=>a+b,0)/3;
   const avgRate={};L.forEach(l=>(l.services||[]).forEach(s=>{if(s.rate)(avgRate[s.name]=avgRate[s.name]||[]).push(s.rate);}));
   const tgt=targetOf(month()),got=recognisedIn(month()),cashIn=collectedIn(month()),dleft=Math.max(1,31-new Date().getDate());
   // This calendar month only, for the "how did this month actually go" breakdown —
@@ -3041,8 +3160,13 @@ function vReports(){
     <h2 style="margin:0">Leads over time</h2>
     <select id="trendSvcFilter" style="margin-left:auto;max-width:200px"><option value="">All services</option>
       ${allServiceNames.map(n=>`<option${trendChartService===n?' selected':''}>${esc(n)}</option>`).join('')}</select></div>
-    <p class="sub" style="margin-bottom:8px">Click a line in the legend to show or hide it.</p>
-    ${multiLineChart(mo,[
+    <div class="row" style="margin-bottom:8px">
+      <button class="btn sm ${trendGranularity==='day'?'':'ghost'}" data-trendgran="day" style="flex:0 0 auto">Day</button>
+      <button class="btn sm ${trendGranularity==='week'?'':'ghost'}" data-trendgran="week" style="flex:0 0 auto">Week</button>
+      <button class="btn sm ${trendGranularity==='month'?'':'ghost'}" data-trendgran="month" style="flex:0 0 auto">Month</button>
+    </div>
+    <p class="sub" style="margin-bottom:8px">Click a line in the legend to show or hide it. Hover a point for the exact number.</p>
+    ${multiLineChart(trendLabels,[
       {key:'total',label:'Total leads',color:LINE_COLORS[0],values:trendData.total},
       {key:'interested',label:'Interested',color:LINE_COLORS[2],values:trendData.interested},
       {key:'converted',label:'Converted',color:LINE_COLORS[3],values:trendData.converted},
@@ -3060,9 +3184,11 @@ function vReports(){
       ${kpi('Failed incl. fake',failedIncFakeThisMo,newThisMo.length?Math.round(failedIncFakeThisMo/newThisMo.length*100)+'% of new leads combined':'',failedIncFakeThisMo?'bad':'')}
     </div></div>`}
   <div class="kpis">
-    ${kpi('Converted',paidL.length,(L.length?Math.round(paidL.length/L.length*100):0)+'% of all leads','hi')}
+    <div class="kpi hi" id="convertedDrilldownKpi" style="cursor:pointer" title="Click to see the breakdown">
+      <div class="eyebrow">Converted</div><div class="v">${paidL.length}</div><small>${(L.length?Math.round(paidL.length/L.length*100):0)}% of all leads — click for breakdown</small></div>
     ${kpi('Quotations sent',quoted,'reached proposal stage')}
-    ${kpi('Failed',lost,(L.length?Math.round(lost/L.length*100):0)+'% lost or not interested','bad')}
+    <div class="kpi bad" id="failedDrilldownKpi" style="cursor:pointer" title="Click to see the breakdown">
+      <div class="eyebrow">Failed</div><div class="v">${lost}</div><small>${(L.length?Math.round(lost/L.length*100):0)}% lost or not interested — click for breakdown</small></div>
     <div class="kpi bad" id="fakeDrilldownKpi" style="cursor:pointer" title="Click to see the breakdown">
       <div class="eyebrow">Fake / junk</div><div class="v">${fake}</div><small>${(L.length?Math.round(fake/L.length*100):0)}% of all leads — click for breakdown</small></div>
     ${kpi('Average order value',short(aov),'per paying client')}
@@ -3129,11 +3255,12 @@ function vReports(){
       <div class="eyebrow" style="margin-top:6px">${short(items.reduce((s,l)=>s+leadDealValue(l.id),0))}</div></div>`;}).join('')}
   </div></div>
   <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(300px,1fr));margin-top:12px">
-    <div class="card"><h2>Conversion funnel</h2><div class="funnel">${funnel.map(([k,v])=>`<div class="f"><div>${k}</div>
+    <div class="card"><h2>Leads per month</h2>${spark(mo6,leadsBy,false)}</div>
+    <div class="card"><h2>Revenue recognised per month</h2>${spark(mo6,mo6.map(m=>recognisedIn(m)),true)}</div>
+    <div class="card"><h2>Cash collected per month</h2>${spark(mo6,collBy,true)}</div>
+    <div class="card"><h2>Calls per month</h2>${spark(mo6,callsBy,false)}</div>
+    <div class="card" style="grid-column:1/-1"><h2>Conversion funnel</h2><div class="funnel">${funnel.map(([k,v])=>`<div class="f"><div>${k}</div>
       <i style="width:${Math.max(8,v/maxF*100)}%">${v}</i></div>`).join('')}</div></div>
-    <div class="card"><h2>Leads per month</h2>${spark(mo,leadsBy,false)}</div>
-    <div class="card"><h2>Revenue recognised per month</h2>${spark(mo,mo.map(m=>recognisedIn(m)),true)}</div>
-    <div class="card"><h2>Cash collected per month</h2>${spark(mo,collBy,true)}</div>
     <div class="card"><h2>Projects by service</h2>${barsHTML(Object.entries(byType).sort((a,b)=>b[1]-a[1]))}</div>
     <div class="card"><h2>Revenue by service</h2>${barsHTML(Object.entries(revType).map(([k,v])=>[k,Math.round(v)]).sort((a,b)=>b[1]-a[1]))}</div>
     <div class="card"><h2>Average rate charged</h2>${barsHTML(Object.entries(avgRate).map(([k,v])=>[k,Math.round(v.reduce((a,b)=>a+b,0)/v.length)]).sort((a,b)=>b[1]-a[1]).slice(0,10))}</div>
@@ -3144,20 +3271,52 @@ function vReports(){
     <div class="card"><h2>Win rate by source</h2>${barsHTML(SOURCES.map(s=>{const all=L.filter(l=>l.source===s);
       return [s,all.length?Math.round(all.filter(l=>leadPaid(l.id)>0).length/all.length*100):0];}))}</div>
     <div class="card" style="grid-column:1/-1"><h2>Closure rate by service type</h2>
-      <p class="sub" style="margin-bottom:8px">How often a lead asking for each service actually converts, and how much it's worth when it does. A lead counts toward every service it includes.</p>
+      <p class="sub" style="margin-bottom:8px">Each service on a quotation counts as its own separate closure — a two-service deal contributes once to each service's numbers, not the full combined value to both. Revenue is the invoiced/quoted amount for that line, with any overall discount split proportionally across the services on the same document.</p>
       <div class="tablewrap"><table><thead><tr><th>Service</th><th>Leads</th><th>Converted</th><th>Closure rate</th><th>Avg. value when won</th><th>Total revenue</th></tr></thead><tbody>
       ${(()=>{
-        const rows=S.services.map(sv=>{
-          const all=L.filter(l=>(l.services||[]).some(s=>s.code===sv.code));
-          const won=all.filter(l=>leadPaid(l.id)>0);
-          const wonValue=won.reduce((s,l)=>s+leadDealValue(l.id),0);
-          return {sv,all,won,wonValue,rate:all.length?won.length/all.length:0};
-        }).filter(r=>r.all.length).sort((a,b)=>b.rate-a.rate);
-        return rows.length?rows.map(({sv,all,won,wonValue,rate})=>
-          `<tr><td><b>${esc(sv.name)}</b> <span class="eyebrow">${esc(sv.code)}</span></td>
-          <td class="num">${all.length}</td><td class="num">${won.length}</td>
+        // Prefer the actual invoice/quotation line items when one exists (real, final, post-
+        // discount numbers) — only fall back to the lead's raw quoted services list if a lead
+        // was never actually invoiced. Each line item's own rate is its share of the gross
+        // total; the invoice's discount is then applied to that line in the same proportion
+        // it represents of the gross total, so a discount is never double-subtracted or
+        // skipped for any one service.
+        const svcAgg={}; // name -> {leads:Set, won:Set, wonValue:number}
+        const touch=(name,leadId,won,value)=>{
+          svcAgg[name]=svcAgg[name]||{leads:new Set(),won:new Set(),wonValue:0};
+          svcAgg[name].leads.add(leadId);
+          if(won){svcAgg[name].won.add(leadId);svcAgg[name].wonValue+=value;}
+        };
+        L.forEach(l=>{
+          const won=leadPaid(l.id)>0;
+          const docs=S.invoices.filter(i=>i.leadId===l.id&&i.status!=='cancelled'&&i.status!=='denied')
+            .sort((a,b)=>(a.type==='tax'?1:0)-(b.type==='tax'?1:0)); // prefer tax invoices if present
+          const doc=docs.length?docs[docs.length-1]:null;
+          if(doc&&(doc.items||[]).length){
+            const t=invTotals(doc);
+            const gross=doc.items.reduce((s,it)=>s+(Number(it.qty)||0)*(Number(it.rate)||0),0)||1;
+            doc.items.forEach(it=>{
+              const lineGross=(Number(it.qty)||0)*(Number(it.rate)||0);
+              const share=lineGross/gross; // this line's proportion of the document's gross total
+              const lineNet=t.total*share; // same proportion applied to the final, post-discount, post-GST total
+              touch(it.name||it.desc||'(unnamed)',l.id,won,lineNet);
+            });
+          }else{
+            // no invoice/quotation raised yet — fall back to the lead's raw quoted services,
+            // split evenly across them if there's more than one
+            const svcs=l.services||[];
+            const val=leadDealValue(l.id);
+            svcs.forEach(s=>touch(s.name,l.id,won,val/(svcs.length||1)));
+          }
+        });
+        const rows=Object.entries(svcAgg).map(([name,d])=>({
+          name,leadCount:d.leads.size,wonCount:d.won.size,wonValue:d.wonValue,
+          rate:d.leads.size?d.won.size/d.leads.size:0
+        })).filter(r=>r.leadCount).sort((a,b)=>b.rate-a.rate);
+        return rows.length?rows.map(({name,leadCount,wonCount,wonValue,rate})=>
+          `<tr><td><b>${esc(name)}</b></td>
+          <td class="num">${leadCount}</td><td class="num">${wonCount}</td>
           <td class="num" style="font-weight:600;${rate>=0.4?'color:var(--ok)':''}">${Math.round(rate*100)}%</td>
-          <td class="num">${won.length?inr(Math.round(wonValue/won.length)):'—'}</td>
+          <td class="num">${wonCount?inr(Math.round(wonValue/wonCount)):'—'}</td>
           <td class="num" style="font-weight:600">${short(wonValue)}</td></tr>`).join('')
           :'<tr><td colspan="6"><div class="empty">No services quoted yet.</div></td></tr>';
       })()}
@@ -3444,7 +3603,7 @@ function editSource(id){
     src.kind=$('#srcKind').value;src.name=$('#srcName').value.trim()||src.kind;src.url=$('#srcUrl').value.trim();
     if(isNew)S.sources.push(src);
     audit((isNew?'Added':'Updated')+' lead source: '+src.name);save();closeLayer(true);render();toast('Saved');};
-  const sd=$('#srcDel');sd&&(sd.onclick=()=>{if(confirm('Remove this source?')){S.sources=S.sources.filter(x=>x.id!==id);save();closeLayer(true);render();}});
+  const sd=$('#srcDel');sd&&(sd.onclick=()=>{if(confirm('Remove this source?')){tombstoneAndRemove(S,'sources',id);save();closeLayer(true);render();}});
 }
 function editCompany(id,onDone){
   let c=id?S.companies.find(x=>x.id===id):{id:uid('co'),name:'',prefix:'INV',pfPrefix:'PI',website:'getsetstartup.biz',terms:'Payment due within 7 days.'};
@@ -3712,7 +3871,7 @@ function wire(){
     noticeCompose=false;save();render();toast('Notice posted');});
   document.querySelectorAll('[data-rmnotice]').forEach(b=>b.onclick=()=>{
     if(!confirm('Remove this notice?'))return;
-    S.notices=(S.notices||[]).filter(n=>n.id!==b.dataset.rmnotice);save();render();});
+    tombstoneAndRemove(S,'notices',b.dataset.rmnotice);save();render();});
   const aci=$('#addChecklistItem');aci&&(aci.onclick=()=>{checklistCompose=!checklistCompose;render();});
   const sci=$('#saveChecklistItem');sci&&(sci.onclick=()=>{
     const text=$('#newChecklistText').value.trim();if(!text)return toast('Write something first');
@@ -3741,7 +3900,7 @@ function wire(){
     S.expenses.push({id:uid('exp'),kind:$('#expKind').value,date:$('#expDate').value,amount:amt,note:$('#expNote').value.trim(),by:me.username});
     audit('Logged expense: '+inr(amt)+' — '+$('#expKind').value);save();render();toast('Expense added');});
   document.querySelectorAll('[data-rmexp]').forEach(b=>b.onclick=()=>{
-    if(confirm('Remove this expense?')){S.expenses=S.expenses.filter(e=>e.id!==b.dataset.rmexp);save();render();}});
+    if(confirm('Remove this expense?')){tombstoneAndRemove(S,'expenses',b.dataset.rmexp);save();render();}});
   document.querySelectorAll('[data-su]').forEach(el=>el.onkeydown=e=>{
     if(e.key==='Enter'&&e.target.value.trim()){addUpdate(el.dataset.su,e.target.value);e.target.value='';}});
   document.querySelectorAll('[data-hist]').forEach(el=>el.onclick=()=>showHistory(el.dataset.hist));
