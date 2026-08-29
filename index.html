@@ -1100,8 +1100,13 @@ function render(){
     let series;try{series=JSON.parse(svg.dataset.series);}catch(e){series=[];}
     const showTip=(zone,evt)=>{
       const label=zone.dataset.ptlabel,ix=+zone.dataset.ptindex;
-      tip.innerHTML=`<b>${esc(label)}</b>`+series.map(s=>
-        `<div class="row2"><span class="dot" style="background:${s.color}"></span>${esc(s.label)}: <b style="margin:0">${s.values[ix]}</b></div>`).join('');
+      const totalSeries=series.find(s=>s.label==='Total leads');
+      const dayTotal=totalSeries?totalSeries.values[ix]:0;
+      tip.innerHTML=`<b>${esc(label)}</b>`+series.map(s=>{
+        const v=s.values[ix];
+        const pct=(dayTotal>0&&s.label!=='Total leads')?' ('+Math.round(v/dayTotal*100)+'%)':'';
+        return `<div class="row2"><span class="dot" style="background:${s.color}"></span>${esc(s.label)}: <b style="margin:0">${v}${pct}</b></div>`;
+      }).join('');
       const rect=wrap.getBoundingClientRect();
       tip.style.left=(evt.clientX-rect.left)+'px';
       tip.style.top=(evt.clientY-rect.top)+'px';
@@ -2022,6 +2027,8 @@ function openProjectInfo(leadId){
           const r=await api('uploadProjectFile',{leadId:l.id,fileName:file.name,mimeType:file.type,base64});
           if(r.ok){
             l.docs=l.docs||[];l.docs.push(r.file);l.updatedAt=new Date().toISOString();save();
+          }else if(r.error&&/permission|authorization|getFoldersByName/i.test(r.error)){
+            toast('File upload needs a one-time permission grant — see the admin note in Setup, or ask an admin to run driveAccessTest() in Apps Script.');
           }else{toast(r.error||'Upload failed for '+file.name);}
         }catch(err){toast('Could not upload '+file.name);}
       }
@@ -2635,7 +2642,17 @@ function moneyByCompanySection(){
     const paidInFY=S.payments.filter(p=>{const inv=S.invoices.find(x=>x.id===p.invoiceId);
       return inv&&inv.companyId===c.id&&p.date>=bounds.from&&p.date<=bounds.to;})
       .reduce((s,p)=>s+Number(p.amount||0),0);
-    const totalValue=invInFY.reduce((s,i)=>s+invTotals(i).total,0);
+    // "Total value" must equal the sum of the SAME projects shown in the expandable table below
+    // it — previously this summed every tax invoice raised for the company in the FY instead,
+    // which silently double-counts (or picks up stray/duplicate/old invoices) whenever a single
+    // project ends up with more than one invoice against it, e.g. a corrected re-issue or a
+    // proforma that was converted and then re-invoiced. Deriving it from the same project list
+    // the person can see makes the two numbers structurally impossible to disagree.
+    const projectsInFY=projects.filter(l=>{
+      const inv=invForCo.find(i=>i.leadId===l.id);
+      return inv?(inv.date>=bounds.from&&inv.date<=bounds.to):(l.createdAt.slice(0,10)>=bounds.from&&l.createdAt.slice(0,10)<=bounds.to);
+    });
+    const totalValue=projectsInFY.reduce((s,l)=>s+leadDealValue(l.id),0);
     const pendingInv=invForCo.filter(i=>dueOn(i)>0.5);
     const pendingTotal=pendingInv.reduce((s,i)=>s+dueOn(i),0);
     return {c,projects,invInFY,paidInFY,totalValue,pendingInv,pendingTotal};
