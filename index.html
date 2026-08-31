@@ -530,7 +530,7 @@ function mergeServerData(remote){
 }
 
 /* ---------- backend ---------- */
-const EXPECTED_BACKEND_VERSION=8;
+const EXPECTED_BACKEND_VERSION=9;
 let backendVersionMismatch=false;
 async function api(action,payload){
   if(!S.settings.api)throw new Error('No backend URL');
@@ -1075,7 +1075,7 @@ function render(){
       <button class="btn sm ghost" id="myProfile" style="width:100%;margin-bottom:6px">My profile</button>
       <button class="btn sm ghost" id="signout" style="width:100%">Sign out</button></div></nav>
     <main class="main" id="view"></main></div>`;
-  $('#view').innerHTML={dash:vDash,leads:vLeads,projects:vProjects,customers:vCustomers,team:vTeam,tickets:vTickets,invoices:vInvoices,money:vMoney,reports:vReports,services:vServices,email:vEmail,settings:vSettings}[route]();
+  $('#view').innerHTML={dash:vDash,leads:vLeads,projects:vProjects,customers:vCustomers,team:vTeam,tickets:vTickets,invoices:vInvoices,money:vMoney,reports:vReports,website:vWebsite,services:vServices,email:vEmail,settings:vSettings}[route]();
   paintSync();
   $('#signout').onclick=signOut;
   $('#myProfile').onclick=()=>editProfile(me.username);
@@ -1087,6 +1087,8 @@ function render(){
   const rt=$('#repTo');rt&&(rt.onchange=e=>{reportsFilt.to=e.target.value;render();});
   const rtag=$('#repTag');rtag&&(rtag.onchange=e=>{reportsFilt.tag=e.target.value;render();});
   const rclear=$('#repClear');rclear&&(rclear.onclick=()=>{reportsFilt={from:'',to:'',tag:''};render();});
+  const wrs=$('#websiteRangeSel');wrs&&(wrs.onchange=e=>{websiteRange=e.target.value;websiteData=null;render();});
+  const wrb=$('#websiteRefreshBtn');wrb&&(wrb.onclick=()=>{websiteData=null;render();});
   document.querySelectorAll('[data-trendgran]').forEach(el=>el.onclick=()=>{trendGranularity=el.dataset.trendgran;render();});
   const analyticsFilteredLeads=()=>{
     let L=staffLocked()?visibleLeads():S.leads;
@@ -3149,6 +3151,63 @@ function trendBuckets(fromStr,toStr,granularity){
   }
   return buckets;
 }
+let websiteRange='7d',websiteData=null,websiteLoading=false;
+function vWebsite(){
+  if(!websiteData&&!websiteLoading){
+    websiteLoading=true;
+    api('getWebsiteAnalytics',{range:websiteRange}).then(r=>{
+      websiteLoading=false;
+      if(r.ok){websiteData=r;}else{websiteData={error:r.error||'Could not load website analytics.'};}
+      if(route==='website')render();
+    });
+  }
+  const rangeLabel={'7d':'Last 7 days','30d':'Last 30 days','90d':'Last 90 days'}[websiteRange];
+  if(websiteLoading&&!websiteData){
+    return `<div class="topbar"><div><h1>Website</h1><p class="sub">Real traffic from Google Analytics.</p></div></div>
+      <div class="card"><div class="empty">Loading live data from Google Analytics…</div></div>`;
+  }
+  if(websiteData&&websiteData.error){
+    return `<div class="topbar"><div><h1>Website</h1><p class="sub">Real traffic from Google Analytics.</p></div></div>
+      <div class="card"><div class="empty" style="color:var(--bad)">Could not load website analytics: ${esc(websiteData.error)}</div>
+      <p class="sub" style="margin-top:8px">Check that the GA4 credentials are set up correctly in Code.gs (setupGA4Credentials, then testGA4Connection from the Apps Script editor).</p></div>`;
+  }
+  const d=websiteData||{totals:{},byPage:[],bySource:[],byCity:[],leadsByPage:[]};
+  const t=d.totals||{};
+  // Page names read better than raw paths — map the known site paths to their real titles.
+  const PAGE_NAMES={'/':'Home','/pitch-deck':'Pitch Deck','/project-report':'Project Report',
+    '/feasibility-study':'Feasibility Study','/market-research':'Market Research','/business-plan':'Business Plan',
+    '/cfo-services':'CFO Services','/financial-modelling':'Financial Modelling','/fundraising-services':'Fundraising Services',
+    '/sales-deck':'Sales Deck','/registration-services':'Registration Services','/startup-consultation':'Startup Consultation',
+    '/contact-us':'Contact Us'};
+  const nameOfPath=p=>PAGE_NAMES[p]||p;
+  const leadsMap={};(d.leadsByPage||[]).forEach(r=>{leadsMap[r.path]=Number(r.count)||0;});
+  const pageRows=[...(d.byPage||[])].sort((a,b)=>Number(b.views)-Number(a.views));
+  return `<div class="topbar"><div><h1>Website</h1><p class="sub">Real traffic from Google Analytics — ${esc(rangeLabel)}.</p></div><div class="spacer"></div>
+    <select id="websiteRangeSel"><option value="7d"${websiteRange==='7d'?' selected':''}>Last 7 days</option>
+      <option value="30d"${websiteRange==='30d'?' selected':''}>Last 30 days</option>
+      <option value="90d"${websiteRange==='90d'?' selected':''}>Last 90 days</option></select>
+    <button class="btn sm ghost" id="websiteRefreshBtn">↻ Refresh</button></div>
+  <div class="kpis">
+    ${kpi('Page views',t.views||0,'across the site')}
+    ${kpi('Sessions',t.sessions||0,'visits')}
+    ${kpi('Active users',t.users||0,'unique visitors')}
+    ${kpi('Form submissions',(d.leadsByPage||[]).reduce((s,r)=>s+(Number(r.count)||0),0),'generate_lead events','hi')}
+  </div>
+  <div class="card" style="margin-top:14px"><h2>Views by page</h2>
+    <div class="tablewrap"><table><thead><tr><th>Page</th><th>Views</th><th>Sessions</th><th>Engagement rate</th><th>Form submissions</th></tr></thead><tbody>
+    ${pageRows.length?pageRows.map(r=>`<tr><td><b>${esc(nameOfPath(r.path))}</b><div class="eyebrow">${esc(r.path)}</div></td>
+      <td class="num">${r.views}</td><td class="num">${r.sessions}</td>
+      <td class="num">${Math.round((Number(r.engagementRate)||0)*100)}%</td>
+      <td class="num" style="font-weight:600;${leadsMap[r.path]?'color:var(--ok)':''}">${leadsMap[r.path]||0}</td></tr>`).join('')
+      :'<tr><td colspan="5"><div class="empty">No page data for this window.</div></td></tr>'}
+    </tbody></table></div></div>
+  <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(280px,1fr));margin-top:14px">
+    <div class="card"><h2>Traffic sources</h2>${barsHTML((d.bySource||[]).map(r=>[r.channel,Number(r.sessions)||0]).sort((a,b)=>b[1]-a[1]))}</div>
+    <div class="card"><h2>Visitors by city</h2>${barsHTML((d.byCity||[]).map(r=>[r.city,Number(r.sessions)||0]).sort((a,b)=>b[1]-a[1]))}</div>
+  </div>
+  <p class="sub" style="margin-top:10px">Some rows may reflect the site's history under its previous Wix hosting, alongside the current one — GA4 reports on the whole property's traffic, not just this specific build.</p>`;
+}
+
 function vReports(){
   if(!reportsFilt){const wk=new Date();wk.setDate(wk.getDate()-6);
     reportsFilt={from:wk.toISOString().slice(0,10),to:today(),tag:''};} // defaults to the last 7 days
