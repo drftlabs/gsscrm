@@ -274,7 +274,6 @@ const NAVICON={
   team:'<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="7" r="4"/><path d="M2 21v-2a4 4 0 0 1 4-4h6a4 4 0 0 1 4 4v2"/><circle cx="18" cy="8" r="3"/><path d="M22 21v-1.5a3.5 3.5 0 0 0-2.5-3.36"/></svg>',
   customers:'<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/><path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3"/></svg>',
   email:'<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v16H4z"/><polyline points="22,6 12,13 2,6"/></svg>',
-  review:'<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>',
   website:'<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>'
 };
 /* Compact action icon set for .acts buttons */
@@ -328,7 +327,7 @@ const ALIAS={PITCH:'PD',DECK:'PD',PITCHDECK:'PD',SALESDECK:'SD',BPLAN:'BP',BIZPL
 // Bundle codes expand into more than one service code when typed in the paste dock.
 // COMB = Pitch Deck + Financial Model, the combination most often quoted together.
 const BUNDLES={COMB:['PD','FM']};
-const SECTIONS=[['dash','Dashboard'],['leads','Leads'],['review','Review Leads'],['projects','Projects'],['customers','Customer Database'],['team','Team Work & Follow-ups'],['tickets','Tickets'],['invoices','Quotations & Invoices'],['money','Payments'],['reports','Analytics'],['website','Website'],['services','Services'],['email','Email'],['settings','Setup']];
+const SECTIONS=[['dash','Dashboard'],['leads','Leads'],['projects','Projects'],['customers','Customer Database'],['team','Team Work & Follow-ups'],['tickets','Tickets'],['invoices','Quotations & Invoices'],['money','Payments'],['reports','Analytics'],['website','Website'],['services','Services'],['email','Email'],['settings','Setup']];
 const FEATURES=[['createInvoice','Create quotations & invoices'],['recordPayment','Record payments'],['assignAny','Assign leads to anyone'],
   ['deleteLead','Delete leads'],['export','Export & backup'],['editServices','Edit service catalogue'],['manageUsers','Manage logins & permissions'],['viewAllMoney','See all money figures']];
 const PRESETS={'Get Set Startup':{brand:'#4B0FA0',dark:'#2A0660',accent:'#F0C000',bg:'#F6F3FA'},
@@ -629,7 +628,7 @@ function paintSync(){const el=$('#syncBadge');if(!el)return;
 let inbox=[];
 async function checkInbox(){
   if(!S.settings.api||!me)return;
-  try{const r=await api('pullInbox');if(r.ok){inbox=r.items||[];if(inbox.length&&(route==='leads'||route==='review'))render();}}catch(e){}
+  try{const r=await api('pullInbox');if(r.ok){inbox=r.items||[];if(inbox.length&&route==='leads')render();}}catch(e){}
 }
 // Periodic background refresh so a change made on someone else's device shows up here without
 // needing a manual sign-out/sign-in. Only pulls when this device has nothing unsaved of its
@@ -665,7 +664,7 @@ function inboxBanner(){
   return `<div class="card" style="border-left:3px solid var(--accent);margin-bottom:12px">
     <div class="row" style="align-items:center">
       <div><b>${inbox.length} new lead${inbox.length>1?'s':''} waiting</b><div class="sub">Came in from your website form or another connected source.</div></div>
-      <button class="btn gold" id="reviewInbox" style="flex:0 0 auto">Review &amp; add</button>
+      <button class="btn gold" id="reviewInbox" style="flex:0 0 auto">Review leads</button>
     </div></div>`;
 }
 function syncWarningBanner(){
@@ -681,32 +680,6 @@ function syncWarningBanner(){
       <div><b style="color:var(--bad)">Not synced to the server</b><div class="sub">${esc(lastSyncError||'Your changes are saved on this device, but haven\u2019t reached the shared Sheet yet. Don\u2019t sign out or close the tab until this clears.')}</div></div>
       <button class="btn" id="retrySyncBanner" style="flex:0 0 auto">Retry now</button>
     </div></div>`;
-}
-function reviewInbox(){
-  layer(`<div class="dhead"><div style="flex:1"><div class="eyebrow">Incoming</div><h1 style="font-size:19px">${inbox.length} new lead${inbox.length>1?'s':''}</h1></div>
-    <button class="x" data-close>✕</button></div>
-  <div class="dbody">
-    <div class="parsed" id="inboxParsed" style="margin-top:0"></div>
-  </div>`,()=>render());
-  drawInboxParsed();
-}
-function drawInboxParsed(){
-  const box=$('#inboxParsed');if(!box)return;
-  box.innerHTML=inbox.map((p,i)=>{
-    const codes=[];(p.service||'').split(/[\s,+&/]+/).forEach(t=>{codesFrom(t).forEach(c=>{if(!codes.includes(c))codes.push(c);});});
-    if(!codes.length&&p.service)S.services.forEach(sv=>{const k=sv.name.toLowerCase(),t=(p.service||'').toLowerCase();
-      if((t.includes(k)||t.includes(k.split(' ')[0])&&k.split(' ')[0].length>4)&&!codes.includes(sv.code))codes.push(sv.code);});
-    const phone=cleanPh(p.phone).slice(-10);
-    const dupe=S.leads.find(l=>(phone&&cleanPh(l.phone).slice(-10)===phone)||(p.email&&l.email&&l.email.toLowerCase()===p.email.toLowerCase()));
-    return `<div class="pcard ${dupe?'dupe':''}"><input type="checkbox" data-ip="${i}" ${dupe?'':'checked'}>
-      <div class="fields"><b>${esc(p.name||'Unnamed')}</b><div class="chips">
-        <span class="chip${phone?'':' miss'}">${phone?esc(phone):'no phone'}</span>
-        <span class="chip">${esc(p.source||'Webhook')}</span>
-        ${codes.length?codes.map(c=>`<span class="chip gold">${esc((svcOf(c)||{}).name||c)}</span>`).join(''):p.service?`<span class="chip">${esc(p.service)}</span>`:''}
-        ${p.email?`<span class="chip">${esc(p.email)}</span>`:''}
-        ${dupe?'<span class="chip" style="color:#F5D65C">already in list</span>':''}
-      </div>${p.message?`<div class="sub" style="margin-top:5px;color:#B7CBDD">${esc(p.message.slice(0,140))}</div>`:''}</div></div>`;
-  }).join('')+`<button class="btn gold wide" id="commitInbox">Add ${inbox.length} lead${inbox.length>1?'s':''}</button>`;
 }
 async function loadTeam(){if(!S.settings.api)return;
   try{const r=await api('listUsers');if(r.ok){S.team=r.users.map(u=>({username:u.username,name:u.name,role:u.role,active:u.active}));cache.set(S);}}catch(e){}}
@@ -1063,14 +1036,13 @@ function render(){
   const myDueToday=S.leads.filter(l=>l.assignedTo===me.username&&l.followUp&&l.followUp<=today()&&!DEAD.includes(l.stage)).length;
   const counts={leads:S.leads.filter(l=>OPEN_STAGES.includes(l.stage)).length,
     projects:S.leads.filter(l=>isProject(l)&&l.stage!=='Completed').length,
-    review:inbox.length||'',
     team:myDueToday||'',tickets:openTk||'',invoices:S.invoices.filter(i=>i.type==='proforma'&&i.status!=='cancelled'&&i.status!=='denied'&&paidOn(i.id)<=0).length,money:alerts?'!':''};
   $('#app').innerHTML=`<div class="shell">
   <button class="hamburger" id="hamburger" aria-label="Open menu"><span></span><span></span><span></span></button>
   <div class="scrim mobonly" id="sideScrim" style="display:none"></div>
   <nav class="side" id="sideNav">
     <img class="logo" src="${LOGO_UI}" alt="Get Set Startup"><div class="tagline">CRM · getsetstartup.biz</div>
-    ${['dash','leads','review','projects','customers','team','tickets','invoices','money','reports','website','services','email','settings']
+    ${['dash','leads','projects','customers','team','tickets','invoices','money','reports','website','services','email','settings']
       .filter(id=>canSee(id)).map(id=>nav(id,NAVICON[id],SECTIONS.find(s=>s[0]===id)[1],counts[id])).join('')}
     <div class="foot"><div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">${avatar(Object.assign({},me,{photo:myPhoto()}),30)}
       <div><b style="display:block">${esc(me.name||me.username)}</b>${esc(me.role||'')}</div></div>
@@ -1078,7 +1050,7 @@ function render(){
       <button class="btn sm ghost" id="myProfile" style="width:100%;margin-bottom:6px">My profile</button>
       <button class="btn sm ghost" id="signout" style="width:100%">Sign out</button></div></nav>
     <main class="main" id="view"></main></div>`;
-  $('#view').innerHTML={dash:vDash,leads:vLeads,review:vReviewLeads,projects:vProjects,customers:vCustomers,team:vTeam,tickets:vTickets,invoices:vInvoices,money:vMoney,reports:vReports,website:vWebsite,services:vServices,email:vEmail,settings:vSettings}[route]();
+  $('#view').innerHTML={dash:vDash,leads:vLeads,projects:vProjects,customers:vCustomers,team:vTeam,tickets:vTickets,invoices:vInvoices,money:vMoney,reports:vReports,website:vWebsite,services:vServices,email:vEmail,settings:vSettings}[route]();
   paintSync();
   $('#signout').onclick=signOut;
   $('#myProfile').onclick=()=>editProfile(me.username);
@@ -1090,33 +1062,17 @@ function render(){
   const rt=$('#repTo');rt&&(rt.onchange=e=>{reportsFilt.to=e.target.value;render();});
   const rtag=$('#repTag');rtag&&(rtag.onchange=e=>{reportsFilt.tag=e.target.value;render();});
   const rclear=$('#repClear');rclear&&(rclear.onclick=()=>{reportsFilt={from:'',to:'',tag:''};render();});
-  const wrs=$('#websiteRangeSel');wrs&&(wrs.onchange=e=>{websiteRange=e.target.value;websiteData=null;render();});
+  const wrs=$('#websiteRangeSel');wrs&&(wrs.onchange=e=>{websiteRange=e.target.value;websiteCustomFrom='';websiteCustomTo='';websiteData=null;render();});
   const wrb=$('#websiteRefreshBtn');wrb&&(wrb.onclick=()=>{websiteData=null;render();});
-  document.querySelectorAll('[data-reviewaccept]').forEach(b=>b.onclick=async()=>{
-    const i=+b.dataset.reviewaccept,p=inbox[i];if(!p)return;
-    const assignSel=document.querySelector(`[data-reviewassign="${i}"]`);
-    const assignTo=assignSel?assignSel.value:'';
-    const codes=[];(p.service||'').split(/[\s,+&/]+/).forEach(t=>{codesFrom(t).forEach(c=>{if(!codes.includes(c))codes.push(c);});});
-    if(!codes.length&&p.service)S.services.forEach(sv=>{const k=sv.name.toLowerCase(),t=(p.service||'').toLowerCase();
-      if((t.includes(k)||t.includes(k.split(' ')[0])&&k.split(' ')[0].length>4)&&!codes.includes(sv.code))codes.push(sv.code);});
-    const l=newLead({name:p.name||'Unnamed',phone:cleanPh(p.phone).slice(-10),email:p.email||'',
-      source:p.source||'Website',services:splitFee(codes,null,{}),notes:p.message||'',
-      assignedTo:assignTo,assignedBy:me.username,assignedAt:new Date().toISOString()});
-    matchCustomerId(l);
-    S.leads.push(l);
-    try{await api('claimInbox',{ids:[p.id]});}catch(err){}
-    inbox=inbox.filter(x=>x!==p);
-    audit('Accepted lead from review: '+l.name+(assignTo?' → assigned to '+nameOf(assignTo):''));
-    save();render();toast('Lead accepted'+(assignTo?', assigned to '+nameOf(assignTo):''));
-  });
-  document.querySelectorAll('[data-reviewreject]').forEach(b=>b.onclick=async()=>{
-    const i=+b.dataset.reviewreject,p=inbox[i];if(!p)return;
-    if(!confirm('Reject this lead as fake/spam? This removes it from the review queue.'))return;
-    try{await api('rejectInbox',{ids:[p.id]});}catch(err){}
-    inbox=inbox.filter(x=>x!==p);
-    audit('Rejected lead from review: '+(p.name||'Unnamed')+' ('+(p.phone||p.email||'no contact')+')');
-    render();toast('Lead rejected');
-  });
+  const wfd=$('#websiteFromDate'),wtd=$('#websiteToDate');
+  const tryCustomRange=()=>{
+    if(wfd&&wtd&&wfd.value&&wtd.value&&wfd.value<=wtd.value){
+      websiteCustomFrom=wfd.value;websiteCustomTo=wtd.value;websiteData=null;render();
+    }
+  };
+  wfd&&(wfd.onchange=tryCustomRange);wtd&&(wtd.onchange=tryCustomRange);
+  const wcc=$('#websiteClearCustom');wcc&&(wcc.onclick=()=>{websiteCustomFrom='';websiteCustomTo='';websiteData=null;render();});
+  document.querySelectorAll('[data-webgran]').forEach(b=>b.onclick=()=>{websiteGranularity=b.dataset.webgran;render();});
   document.querySelectorAll('[data-trendgran]').forEach(el=>el.onclick=()=>{trendGranularity=el.dataset.trendgran;render();});
   const analyticsFilteredLeads=()=>{
     let L=staffLocked()?visibleLeads():S.leads;
@@ -1563,14 +1519,21 @@ function leadCard(l,sno){
 // a real one should go to. Each row gets its own Assign-to dropdown and a Reject button,
 // separate from the older bulk "Review & add" popup (still used from the Leads page banner),
 // since that flow has no way to reject a single entry or assign it directly on the way in.
-function vReviewLeads(){
+function openReviewLeads(){
+  layer(`<div class="dhead"><div style="flex:1"><div class="eyebrow">Incoming</div><h1 style="font-size:19px">Review Leads</h1>
+    <p class="sub" style="margin-top:2px">Visible to everyone, so anyone can catch a fake one or assign a real one straight away.</p></div>
+    <button class="x" data-close>✕</button></div>
+  <div class="dbody"><div id="reviewLeadsBody"></div></div>`,()=>render());
+  drawReviewLeadsBody();
+}
+function drawReviewLeadsBody(){
+  const box=$('#reviewLeadsBody');if(!box)return;
   const people=team().filter(t=>t.active);
   if(!inbox.length){
-    return `<div class="topbar"><div><h1>Review Leads</h1><p class="sub">New leads from the website and other connected sources wait here until someone accepts or rejects them.</p></div></div>
-      <div class="card"><div class="empty">Nothing waiting right now.</div></div>`;
+    box.innerHTML=`<div class="empty">Nothing waiting right now.</div>`;
+    return;
   }
-  return `<div class="topbar"><div><h1>Review Leads</h1><p class="sub">${inbox.length} lead${inbox.length>1?'s':''} waiting — visible to everyone, so anyone can catch a fake one or assign a real one.</p></div></div>
-  ${inbox.map((p,i)=>{
+  box.innerHTML=inbox.map((p,i)=>{
     const codes=[];(p.service||'').split(/[\s,+&/]+/).forEach(t=>{codesFrom(t).forEach(c=>{if(!codes.includes(c))codes.push(c);});});
     if(!codes.length&&p.service)S.services.forEach(sv=>{const k=sv.name.toLowerCase(),t=(p.service||'').toLowerCase();
       if((t.includes(k)||t.includes(k.split(' ')[0])&&k.split(' ')[0].length>4)&&!codes.includes(sv.code))codes.push(sv.code);});
@@ -1598,7 +1561,40 @@ function vReviewLeads(){
         </div>
       </div>
     </div>`;
-  }).join('')}`;
+  }).join('');
+  wireReviewLeadsActions();
+}
+function wireReviewLeadsActions(){
+  document.querySelectorAll('[data-reviewaccept]').forEach(b=>b.onclick=async()=>{
+    const i=+b.dataset.reviewaccept,p=inbox[i];if(!p)return;
+    const assignSel=document.querySelector(`[data-reviewassign="${i}"]`);
+    const assignTo=assignSel?assignSel.value:'';
+    const codes=[];(p.service||'').split(/[\s,+&/]+/).forEach(t=>{codesFrom(t).forEach(c=>{if(!codes.includes(c))codes.push(c);});});
+    if(!codes.length&&p.service)S.services.forEach(sv=>{const k=sv.name.toLowerCase(),t=(p.service||'').toLowerCase();
+      if((t.includes(k)||t.includes(k.split(' ')[0])&&k.split(' ')[0].length>4)&&!codes.includes(sv.code))codes.push(sv.code);});
+    const l=newLead({name:p.name||'Unnamed',phone:cleanPh(p.phone).slice(-10),email:p.email||'',
+      source:p.source||'Website',services:splitFee(codes,null,{}),notes:p.message||'',
+      assignedTo:assignTo,assignedBy:me.username,assignedAt:new Date().toISOString()});
+    matchCustomerId(l);
+    S.leads.push(l);
+    try{await api('claimInbox',{ids:[p.id]});}catch(err){}
+    inbox=inbox.filter(x=>x!==p);
+    audit('Accepted lead from review: '+l.name+(assignTo?' → assigned to '+nameOf(assignTo):''));
+    save();
+    if(route==='leads')render(); // refreshes the Leads list underneath so the new lead shows immediately
+    drawReviewLeadsBody(); // redraws just the modal, so it doesn't close after one action
+    toast('Lead accepted'+(assignTo?', assigned to '+nameOf(assignTo):''));
+  });
+  document.querySelectorAll('[data-reviewreject]').forEach(b=>b.onclick=async()=>{
+    const i=+b.dataset.reviewreject,p=inbox[i];if(!p)return;
+    if(!confirm('Reject this lead as fake/spam? This removes it from the review queue and does not count it anywhere.'))return;
+    try{await api('rejectInbox',{ids:[p.id]});}catch(err){}
+    inbox=inbox.filter(x=>x!==p);
+    audit('Rejected lead from review: '+(p.name||'Unnamed')+' ('+(p.phone||p.email||'no contact')+')');
+    if(route==='leads')render();
+    drawReviewLeadsBody();
+    toast('Lead rejected');
+  });
 }
 function vLeads(){
   const rows=leadRows('leads');
@@ -3221,17 +3217,53 @@ function trendBuckets(fromStr,toStr,granularity){
   }
   return buckets;
 }
-let websiteRange='7d',websiteData=null,websiteLoading=false;
-function vWebsite(){
-  if(!websiteData&&!websiteLoading){
-    websiteLoading=true;
-    api('getWebsiteAnalytics',{range:websiteRange}).then(r=>{
-      websiteLoading=false;
-      if(r.ok){websiteData=r;}else{websiteData={error:r.error||'Could not load website analytics.'};}
-      if(route==='website')render();
-    });
+let websiteRange='7d',websiteData=null,websiteLoading=false,websiteCustomFrom='',websiteCustomTo='',websiteGranularity='day';
+// Buckets GA4's day-by-day rows into day/week/month points for the trend graph, reusing the
+// same aggregation idea as trendBuckets() elsewhere in Analytics -- GA4 always returns daily
+// rows regardless of the selected range, so week/month views are built by summing days here
+// rather than asking GA4 for a different granularity.
+function bucketDailyRows(dailyRows,granularity){
+  if(!dailyRows||!dailyRows.length)return [];
+  const parsed=dailyRows.map(r=>{
+    const y=r.date.slice(0,4),m=r.date.slice(4,6),d=r.date.slice(6,8);
+    return {dateObj:new Date(`${y}-${m}-${d}T00:00:00`),views:Number(r.views)||0,sessions:Number(r.sessions)||0,conversions:Number(r.conversions)||0};
+  });
+  if(granularity==='day'){
+    return parsed.map(r=>({label:r.dateObj.toLocaleDateString('en-IN',{day:'2-digit',month:'short'}),views:r.views,sessions:r.sessions,conversions:r.conversions}));
   }
-  const rangeLabel={'7d':'Last 7 days','30d':'Last 30 days','90d':'Last 90 days'}[websiteRange];
+  if(granularity==='week'){
+    const buckets={};
+    parsed.forEach(r=>{
+      const wk=new Date(r.dateObj);wk.setDate(wk.getDate()-((wk.getDay()+6)%7)); // Monday of that week
+      const key=wk.toISOString().slice(0,10);
+      if(!buckets[key])buckets[key]={label:wk.toLocaleDateString('en-IN',{day:'2-digit',month:'short'}),views:0,sessions:0,conversions:0,sortKey:key};
+      buckets[key].views+=r.views;buckets[key].sessions+=r.sessions;buckets[key].conversions+=r.conversions;
+    });
+    return Object.values(buckets).sort((a,b)=>a.sortKey<b.sortKey?-1:1);
+  }
+  // month
+  const buckets={};
+  parsed.forEach(r=>{
+    const key=r.dateObj.toISOString().slice(0,7);
+    if(!buckets[key])buckets[key]={label:r.dateObj.toLocaleDateString('en-IN',{month:'short',year:'2-digit'}),views:0,sessions:0,conversions:0,sortKey:key};
+    buckets[key].views+=r.views;buckets[key].sessions+=r.sessions;buckets[key].conversions+=r.conversions;
+  });
+  return Object.values(buckets).sort((a,b)=>a.sortKey<b.sortKey?-1:1);
+}
+function loadWebsiteAnalytics(){
+  websiteLoading=true;
+  const params={range:websiteRange};
+  if(websiteCustomFrom&&websiteCustomTo){params.startDate=websiteCustomFrom;params.endDate=websiteCustomTo;}
+  api('getWebsiteAnalytics',params).then(r=>{
+    websiteLoading=false;
+    if(r.ok){websiteData=r;}else{websiteData={error:r.error||'Could not load website analytics.'};}
+    if(route==='website')render();
+  });
+}
+function vWebsite(){
+  if(!websiteData&&!websiteLoading)loadWebsiteAnalytics();
+  const usingCustom=!!(websiteCustomFrom&&websiteCustomTo);
+  const rangeLabel=usingCustom?`${fmtD(websiteCustomFrom)} – ${fmtD(websiteCustomTo)}`:{'7d':'Last 7 days','30d':'Last 30 days','90d':'Last 90 days'}[websiteRange];
   if(websiteLoading&&!websiteData){
     return `<div class="topbar"><div><h1>Website</h1><p class="sub">Real traffic from Google Analytics.</p></div></div>
       <div class="card"><div class="empty">Loading live data from Google Analytics…</div></div>`;
@@ -3241,9 +3273,8 @@ function vWebsite(){
       <div class="card"><div class="empty" style="color:var(--bad)">Could not load website analytics: ${esc(websiteData.error)}</div>
       <p class="sub" style="margin-top:8px">Check that the GA4 credentials are set up correctly in Code.gs (setupGA4Credentials, then testGA4Connection from the Apps Script editor).</p></div>`;
   }
-  const d=websiteData||{totals:{},byPage:[],bySource:[],byCity:[],leadsByPage:[]};
-  const t=d.totals||{};
-  // Page names read better than raw paths — map the known site paths to their real titles.
+  const d=websiteData||{totals:{},totalsPrior:{},byPage:[],bySource:[],byKeyword:[],byCity:[],byDevice:[],daily:[],leadsByPage:[],convertingSessionDuration:0};
+  const t=d.totals||{},tp=d.totalsPrior||{};
   const PAGE_NAMES={'/':'Home','/pitch-deck':'Pitch Deck','/project-report':'Project Report',
     '/feasibility-study':'Feasibility Study','/market-research':'Market Research','/business-plan':'Business Plan',
     '/cfo-services':'CFO Services','/financial-modelling':'Financial Modelling','/fundraising-services':'Fundraising Services',
@@ -3252,30 +3283,88 @@ function vWebsite(){
   const nameOfPath=p=>PAGE_NAMES[p]||p;
   const leadsMap={};(d.leadsByPage||[]).forEach(r=>{leadsMap[r.path]=Number(r.count)||0;});
   const pageRows=[...(d.byPage||[])].sort((a,b)=>Number(b.views)-Number(a.views));
+  const totalLeads=(d.leadsByPage||[]).reduce((s,r)=>s+(Number(r.count)||0),0);
+  const convPct=t.sessions?Math.round(totalLeads/t.sessions*1000)/10:0;
+  // Delta vs the prior period of equal length — the backend already computed the correct
+  // comparison window, this just turns the two totals into a "+X%"/"-X%" label.
+  const delta=(cur,prior)=>{
+    if(!prior)return cur>0?{txt:'new',cls:'hi'}:{txt:'—',cls:''};
+    const pct=Math.round((cur-prior)/prior*1000)/10;
+    return {txt:(pct>=0?'+':'')+pct+'% vs last period',cls:pct>=0?'hi':'bad'};
+  };
+  const dViews=delta(t.views,tp.views),dSessions=delta(t.sessions,tp.sessions),dConv=delta(t.conversions,tp.conversions);
+  const fmtSec=s=>{s=Math.round(Number(s)||0);const m=Math.floor(s/60),r=s%60;return m?`${m}m ${r}s`:`${r}s`;};
+  const bucketed=bucketDailyRows(d.daily,websiteGranularity);
+  const DEVICE_LABEL={mobile:'Mobile',desktop:'Desktop',tablet:'Tablet'};
+
   return `<div class="topbar"><div><h1>Website</h1><p class="sub">Real traffic from Google Analytics — ${esc(rangeLabel)}.</p></div><div class="spacer"></div>
-    <select id="websiteRangeSel"><option value="7d"${websiteRange==='7d'?' selected':''}>Last 7 days</option>
-      <option value="30d"${websiteRange==='30d'?' selected':''}>Last 30 days</option>
-      <option value="90d"${websiteRange==='90d'?' selected':''}>Last 90 days</option></select>
+    <select id="websiteRangeSel"><option value="7d"${!usingCustom&&websiteRange==='7d'?' selected':''}>Last 7 days</option>
+      <option value="30d"${!usingCustom&&websiteRange==='30d'?' selected':''}>Last 30 days</option>
+      <option value="90d"${!usingCustom&&websiteRange==='90d'?' selected':''}>Last 90 days</option></select>
+    <input type="date" id="websiteFromDate" value="${esc(websiteCustomFrom)}" title="Custom range start">
+    <input type="date" id="websiteToDate" value="${esc(websiteCustomTo)}" title="Custom range end">
+    ${usingCustom?'<button class="btn sm ghost" id="websiteClearCustom">Clear custom range</button>':''}
     <button class="btn sm ghost" id="websiteRefreshBtn">↻ Refresh</button></div>
   <div class="kpis">
-    ${kpi('Page views',t.views||0,'across the site')}
-    ${kpi('Sessions',t.sessions||0,'visits')}
-    ${kpi('Active users',t.users||0,'unique visitors')}
-    ${kpi('Form submissions',(d.leadsByPage||[]).reduce((s,r)=>s+(Number(r.count)||0),0),'generate_lead events','hi')}
+    ${kpi('Page views',t.views||0,dViews.txt,dViews.cls)}
+    ${kpi('Sessions',t.sessions||0,dSessions.txt,dSessions.cls)}
+    ${kpi('New visitors',t.newUsers||0,t.users?Math.round((t.newUsers||0)/t.users*100)+'% of all visitors':'')}
+    ${kpi('Form submissions',totalLeads,dConv.txt,dConv.cls,'hi')}
   </div>
+  <div class="kpis" style="margin-top:10px">
+    ${kpi('Conversion rate',convPct+'%','sessions that became a lead','hi')}
+    ${kpi('Avg. engagement time',fmtSec(t.avgDuration),'per session, site-wide')}
+    ${kpi('Time-to-conversion proxy',fmtSec(d.convertingSessionDuration),'avg. session length on converting visits — see note below')}
+  </div>
+
+  <div class="card" style="margin-top:14px">
+    <div class="row" style="align-items:center;margin-bottom:8px">
+      <h2 style="margin:0">Visitors &amp; leads over time</h2>
+      <div class="spacer"></div>
+      <button class="btn sm ${websiteGranularity==='day'?'':'ghost'}" data-webgran="day">Day</button>
+      <button class="btn sm ${websiteGranularity==='week'?'':'ghost'}" data-webgran="week">Week</button>
+      <button class="btn sm ${websiteGranularity==='month'?'':'ghost'}" data-webgran="month">Month</button>
+    </div>
+    ${bucketed.length?multiLineChart(bucketed.map(b=>b.label),[
+      {key:'views',label:'Page views',color:LINE_COLORS[0],values:bucketed.map(b=>b.views)},
+      {key:'sessions',label:'Sessions',color:LINE_COLORS[2],values:bucketed.map(b=>b.sessions)},
+      {key:'conversions',label:'Form submissions',color:LINE_COLORS[1],values:bucketed.map(b=>b.conversions)}
+    ],new Set())
+    :'<div class="empty">No daily data for this window yet.</div>'}
+  </div>
+
   <div class="card" style="margin-top:14px"><h2>Views by page</h2>
-    <div class="tablewrap"><table><thead><tr><th>Page</th><th>Views</th><th>Sessions</th><th>Engagement rate</th><th>Form submissions</th></tr></thead><tbody>
-    ${pageRows.length?pageRows.map(r=>`<tr><td><b>${esc(nameOfPath(r.path))}</b><div class="eyebrow">${esc(r.path)}</div></td>
+    <div class="tablewrap"><table><thead><tr><th>Page</th><th>Views</th><th>Sessions</th><th>Engagement rate</th><th>Avg. time</th><th>Form submissions</th><th>Conv. rate</th></tr></thead><tbody>
+    ${pageRows.length?pageRows.map(r=>{
+      const leads=leadsMap[r.path]||0,cr=Number(r.sessions)?Math.round(leads/Number(r.sessions)*1000)/10:0;
+      return `<tr><td><b>${esc(nameOfPath(r.path))}</b><div class="eyebrow">${esc(r.path)}</div></td>
       <td class="num">${r.views}</td><td class="num">${r.sessions}</td>
       <td class="num">${Math.round((Number(r.engagementRate)||0)*100)}%</td>
-      <td class="num" style="font-weight:600;${leadsMap[r.path]?'color:var(--ok)':''}">${leadsMap[r.path]||0}</td></tr>`).join('')
-      :'<tr><td colspan="5"><div class="empty">No page data for this window.</div></td></tr>'}
+      <td class="num">${fmtSec(r.avgDuration)}</td>
+      <td class="num" style="font-weight:600;${leads?'color:var(--ok)':''}">${leads}</td>
+      <td class="num">${cr}%</td></tr>`;
+    }).join('')
+      :'<tr><td colspan="7"><div class="empty">No page data for this window.</div></td></tr>'}
     </tbody></table></div></div>
+
   <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(280px,1fr));margin-top:14px">
     <div class="card"><h2>Traffic sources</h2>${barsHTML((d.bySource||[]).map(r=>[r.channel,Number(r.sessions)||0]).sort((a,b)=>b[1]-a[1]))}</div>
+    <div class="card"><h2>Device type</h2>${barsHTML((d.byDevice||[]).map(r=>[DEVICE_LABEL[r.device]||r.device,Number(r.sessions)||0]).sort((a,b)=>b[1]-a[1]))}</div>
     <div class="card"><h2>Visitors by city</h2>${barsHTML((d.byCity||[]).map(r=>[r.city,Number(r.sessions)||0]).sort((a,b)=>b[1]-a[1]))}</div>
   </div>
-  <p class="sub" style="margin-top:10px">Some rows may reflect the site's history under its previous Wix hosting, alongside the current one — GA4 reports on the whole property's traffic, not just this specific build.</p>`;
+
+  <div class="card" style="margin-top:14px"><h2>Best-performing keywords</h2>
+    <p class="sub" style="margin-bottom:8px">Only shows keywords Google Ads has actually reported — the search terms behind your paid campaigns, not organic search (Google withholds those for privacy).</p>
+    ${(d.byKeyword||[]).length?(()=>{
+      const kw=[...d.byKeyword].sort((a,b)=>Number(b.conversions)-Number(a.conversions)||Number(b.sessions)-Number(a.sessions));
+      return `<div class="tablewrap"><table><thead><tr><th>Keyword</th><th>Sessions</th><th>Conversions</th><th>Conv. rate</th></tr></thead><tbody>
+        ${kw.map(r=>{const cr=Number(r.sessions)?Math.round(Number(r.conversions)/Number(r.sessions)*1000)/10:0;
+          return `<tr><td>${esc(r.keyword)}</td><td class="num">${r.sessions}</td><td class="num" style="font-weight:600;${Number(r.conversions)?'color:var(--ok)':''}">${r.conversions}</td><td class="num">${cr}%</td></tr>`;}).join('')}
+        </tbody></table></div>`;
+    })():'<div class="empty">No keyword-level data yet — this fills in once Google Ads campaigns are linked and running.</div>'}
+  </div>
+
+  <p class="sub" style="margin-top:10px">Some rows may reflect the site's history under its previous Wix hosting, alongside the current one — GA4 reports on the whole property's traffic, not just this specific build. "Time-to-conversion" above is an honest proxy (average session length on visits that converted), not a literal first-visit-to-conversion timer — GA4's standard reporting can't produce that without a BigQuery export, which this integration doesn't use.</p>`;
 }
 
 function vReports(){
@@ -4021,24 +4110,6 @@ function closeLayer(skip){const l=$('#layer');if(!l.firstChild)return;
   if(cb&&!skip)cb();
   l.innerHTML='';document.body.style.overflow='';}
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeLayer();});
-document.addEventListener('click',async e=>{
-  if(e.target.id!=='commitInbox')return;
-  const keep=[...document.querySelectorAll('#inboxParsed input[type=checkbox]')].filter(c=>c.checked).map(c=>inbox[+c.dataset.ip]);
-  if(!keep.length)return toast('Nothing selected');
-  keep.forEach(p=>{
-    const codes=[];(p.service||'').split(/[\s,+&/]+/).forEach(t=>{codesFrom(t).forEach(c=>{if(!codes.includes(c))codes.push(c);});});
-    if(!codes.length&&p.service)S.services.forEach(sv=>{const k=sv.name.toLowerCase(),t=(p.service||'').toLowerCase();
-      if((t.includes(k)||t.includes(k.split(' ')[0])&&k.split(' ')[0].length>4)&&!codes.includes(sv.code))codes.push(sv.code);});
-    const l=newLead({name:p.name||'Unnamed',phone:cleanPh(p.phone).slice(-10),email:p.email||'',
-      source:p.source||'Wix form',services:splitFee(codes,null,{}),notes:p.message||''});
-    matchCustomerId(l);
-    S.leads.push(l);
-  });
-  const ids=keep.map(p=>inbox.indexOf(p)).map(i=>inbox[i]&&inbox[i].id).filter(Boolean);
-  try{await api('claimInbox',{ids});}catch(err){}
-  inbox=inbox.filter(p=>keep.indexOf(p)===-1);
-  audit('Imported '+keep.length+' leads from inbox');save();closeLayer(true);render();toast(keep.length+' leads added');
-});
 
 /* ---------- wiring ---------- */
 function wire(){
@@ -4157,7 +4228,7 @@ function wire(){
   document.querySelectorAll('[data-gostage]').forEach(el=>el.onclick=()=>{filt.stage=el.dataset.gostage;filt.assignee='all';filt.showDead=true;route='leads';render();window.scrollTo(0,0);});
   document.querySelectorAll('[data-gosvc]').forEach(el=>el.onclick=()=>{filt.svc=el.dataset.gosvc;filt.assignee='all';filt.stage='';route='projects';render();window.scrollTo(0,0);});
 
-  const ri=$('#reviewInbox');ri&&(ri.onclick=reviewInbox);
+  const ri=$('#reviewInbox');ri&&(ri.onclick=openReviewLeads);
   if($('#doParse')){
     $('#doParse').onclick=()=>{const t=$('#paste').value.trim();if(!t)return toast('Paste something first');
       parsed=parseBlocks(t);drawParsed();if(!parsed.length)toast('Could not read that');};
