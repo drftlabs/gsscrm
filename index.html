@@ -1529,18 +1529,20 @@ function openReviewLeads(){
 function drawReviewLeadsBody(){
   const box=$('#reviewLeadsBody');if(!box)return;
   const people=team().filter(t=>t.active);
-  if(!inbox.length){
-    box.innerHTML=`<div class="empty">Nothing waiting right now.</div>`;
-    return;
-  }
-  box.innerHTML=inbox.map((p,i)=>{
+  if(!inbox.length){box.innerHTML=`<div class="empty">Nothing waiting right now.</div>`;return;}
+  box.innerHTML=`<div class="row" style="align-items:center;margin-bottom:10px;gap:8px">
+    <label class="row" style="align-items:center;gap:6px;flex:0 0 auto"><input type="checkbox" id="reviewSelAll"> Select all</label>
+    <button class="btn sm green" id="reviewBulkAccept">✓ Accept selected</button>
+    <button class="btn sm ghost" id="reviewBulkReject" style="color:var(--bad)">✕ Reject selected</button>
+  </div>`+inbox.map(p=>{
     const codes=[];(p.service||'').split(/[\s,+&/]+/).forEach(t=>{codesFrom(t).forEach(c=>{if(!codes.includes(c))codes.push(c);});});
     if(!codes.length&&p.service)S.services.forEach(sv=>{const k=sv.name.toLowerCase(),t=(p.service||'').toLowerCase();
       if((t.includes(k)||t.includes(k.split(' ')[0])&&k.split(' ')[0].length>4)&&!codes.includes(sv.code))codes.push(sv.code);});
     const phone=cleanPh(p.phone).slice(-10);
     const dupe=S.leads.find(l=>(phone&&cleanPh(l.phone).slice(-10)===phone)||(p.email&&l.email&&l.email.toLowerCase()===p.email.toLowerCase()));
-    return `<div class="card" style="margin-bottom:10px" data-reviewrow="${i}">
+    return `<div class="card" style="margin-bottom:10px" data-reviewrow="${esc(p.id)}">
       <div class="row" style="align-items:flex-start;gap:14px">
+        <input type="checkbox" class="reviewSel" data-id="${esc(p.id)}" style="margin-top:3px">
         <div style="flex:2;min-width:180px">
           <b>${esc(p.name||'Unnamed')}</b>
           <div class="chips" style="margin-top:4px">
@@ -1554,39 +1556,61 @@ function drawReviewLeadsBody(){
           <div class="eyebrow" style="margin-top:6px">${esc(fmtDT(p.receivedAt))}</div>
         </div>
         <div style="flex:0 0 auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-          <select data-reviewassign="${i}" style="min-width:150px"><option value="">Assign to…</option>
+          <select data-reviewassign="${esc(p.id)}" style="min-width:150px"><option value="">Assign to…</option>
             ${people.map(t=>`<option value="${esc(t.username)}">${esc(t.name)}</option>`).join('')}</select>
-          <button class="btn sm green" data-reviewaccept="${i}">✓ Accept</button>
-          <button class="btn sm ghost" data-reviewreject="${i}" style="color:var(--bad)">✕ Reject</button>
+          <button class="btn sm green" data-reviewaccept="${esc(p.id)}">✓ Accept</button>
+          <button class="btn sm ghost" data-reviewreject="${esc(p.id)}" style="color:var(--bad)">✕ Reject</button>
         </div>
       </div>
     </div>`;
   }).join('');
   wireReviewLeadsActions();
 }
+function acceptOneInbox_(p,assignTo){
+  const codes=[];(p.service||'').split(/[\s,+&/]+/).forEach(t=>{codesFrom(t).forEach(c=>{if(!codes.includes(c))codes.push(c);});});
+  if(!codes.length&&p.service)S.services.forEach(sv=>{const k=sv.name.toLowerCase(),t=(p.service||'').toLowerCase();
+    if((t.includes(k)||t.includes(k.split(' ')[0])&&k.split(' ')[0].length>4)&&!codes.includes(sv.code))codes.push(sv.code);});
+  const l=newLead({name:p.name||'Unnamed',phone:cleanPh(p.phone).slice(-10),email:p.email||'',
+    source:p.source||'Website',services:splitFee(codes,null,{}),notes:p.message||'',
+    assignedTo:assignTo||'',assignedBy:me.username,assignedAt:new Date().toISOString()});
+  matchCustomerId(l);S.leads.push(l);
+  audit('Accepted lead from review: '+l.name+(assignTo?' → assigned to '+nameOf(assignTo):''));
+  return l;
+}
 function wireReviewLeadsActions(){
+  const sa=$('#reviewSelAll');sa&&(sa.onchange=()=>{document.querySelectorAll('.reviewSel').forEach(c=>c.checked=sa.checked);});
+  const selected=()=>[...document.querySelectorAll('.reviewSel:checked')].map(c=>c.dataset.id).map(id=>inbox.find(p=>p.id===id)).filter(Boolean);
+
+  $('#reviewBulkAccept').onclick=async()=>{
+    const items=selected();if(!items.length)return toast('Select at least one lead first');
+    items.forEach(p=>acceptOneInbox_(p,document.querySelector(`[data-reviewassign="${p.id}"]`)?.value||''));
+    try{await api('claimInbox',{ids:items.map(p=>p.id)});}catch(err){}
+    inbox=inbox.filter(p=>!items.includes(p));
+    save();if(route==='leads')render();drawReviewLeadsBody();
+    toast(items.length+' lead'+(items.length>1?'s':'')+' accepted');
+  };
+  $('#reviewBulkReject').onclick=async()=>{
+    const items=selected();if(!items.length)return toast('Select at least one lead first');
+    if(!confirm('Reject '+items.length+' lead(s) as fake/spam? This removes them from the queue and does not count them anywhere.'))return;
+    try{await api('rejectInbox',{ids:items.map(p=>p.id)});}catch(err){}
+    inbox=inbox.filter(p=>!items.includes(p));
+    items.forEach(p=>audit('Rejected lead from review: '+(p.name||'Unnamed')+' ('+(p.phone||p.email||'no contact')+')'));
+    if(route==='leads')render();drawReviewLeadsBody();
+    toast(items.length+' lead'+(items.length>1?'s':'')+' rejected');
+  };
   document.querySelectorAll('[data-reviewaccept]').forEach(b=>b.onclick=async()=>{
-    const i=+b.dataset.reviewaccept,p=inbox[i];if(!p)return;
-    const assignSel=document.querySelector(`[data-reviewassign="${i}"]`);
-    const assignTo=assignSel?assignSel.value:'';
-    const codes=[];(p.service||'').split(/[\s,+&/]+/).forEach(t=>{codesFrom(t).forEach(c=>{if(!codes.includes(c))codes.push(c);});});
-    if(!codes.length&&p.service)S.services.forEach(sv=>{const k=sv.name.toLowerCase(),t=(p.service||'').toLowerCase();
-      if((t.includes(k)||t.includes(k.split(' ')[0])&&k.split(' ')[0].length>4)&&!codes.includes(sv.code))codes.push(sv.code);});
-    const l=newLead({name:p.name||'Unnamed',phone:cleanPh(p.phone).slice(-10),email:p.email||'',
-      source:p.source||'Website',services:splitFee(codes,null,{}),notes:p.message||'',
-      assignedTo:assignTo,assignedBy:me.username,assignedAt:new Date().toISOString()});
-    matchCustomerId(l);
-    S.leads.push(l);
+    const p=inbox.find(x=>x.id===b.dataset.reviewaccept);if(!p)return;
+    const assignTo=document.querySelector(`[data-reviewassign="${p.id}"]`)?.value||'';
+    acceptOneInbox_(p,assignTo);
     try{await api('claimInbox',{ids:[p.id]});}catch(err){}
     inbox=inbox.filter(x=>x!==p);
-    audit('Accepted lead from review: '+l.name+(assignTo?' → assigned to '+nameOf(assignTo):''));
     save();
-    if(route==='leads')render(); // refreshes the Leads list underneath so the new lead shows immediately
-    drawReviewLeadsBody(); // redraws just the modal, so it doesn't close after one action
+    if(route==='leads')render();
+    drawReviewLeadsBody();
     toast('Lead accepted'+(assignTo?', assigned to '+nameOf(assignTo):''));
   });
   document.querySelectorAll('[data-reviewreject]').forEach(b=>b.onclick=async()=>{
-    const i=+b.dataset.reviewreject,p=inbox[i];if(!p)return;
+    const p=inbox.find(x=>x.id===b.dataset.reviewreject);if(!p)return;
     if(!confirm('Reject this lead as fake/spam? This removes it from the review queue and does not count it anywhere.'))return;
     try{await api('rejectInbox',{ids:[p.id]});}catch(err){}
     inbox=inbox.filter(x=>x!==p);
