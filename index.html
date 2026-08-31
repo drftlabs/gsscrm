@@ -326,7 +326,7 @@ const ALIAS={PITCH:'PD',DECK:'PD',PITCHDECK:'PD',SALESDECK:'SD',BPLAN:'BP',BIZPL
 // Bundle codes expand into more than one service code when typed in the paste dock.
 // COMB = Pitch Deck + Financial Model, the combination most often quoted together.
 const BUNDLES={COMB:['PD','FM']};
-const SECTIONS=[['dash','Dashboard'],['leads','Leads'],['projects','Projects'],['customers','Customer Database'],['team','Team Work & Follow-ups'],['tickets','Tickets'],['invoices','Quotations & Invoices'],['money','Payments'],['reports','Analytics'],['services','Services'],['email','Email'],['settings','Setup']];
+const SECTIONS=[['dash','Dashboard'],['leads','Leads'],['projects','Projects'],['customers','Customer Database'],['team','Team Work & Follow-ups'],['tickets','Tickets'],['invoices','Quotations & Invoices'],['money','Payments'],['reports','Analytics'],['website','Website'],['services','Services'],['email','Email'],['settings','Setup']];
 const FEATURES=[['createInvoice','Create quotations & invoices'],['recordPayment','Record payments'],['assignAny','Assign leads to anyone'],
   ['deleteLead','Delete leads'],['export','Export & backup'],['editServices','Edit service catalogue'],['manageUsers','Manage logins & permissions'],['viewAllMoney','See all money figures']];
 const PRESETS={'Get Set Startup':{brand:'#4B0FA0',dark:'#2A0660',accent:'#F0C000',bg:'#F6F3FA'},
@@ -530,7 +530,7 @@ function mergeServerData(remote){
 }
 
 /* ---------- backend ---------- */
-const EXPECTED_BACKEND_VERSION=7;
+const EXPECTED_BACKEND_VERSION=8;
 let backendVersionMismatch=false;
 async function api(action,payload){
   if(!S.settings.api)throw new Error('No backend URL');
