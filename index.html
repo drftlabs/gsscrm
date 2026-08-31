@@ -326,7 +326,7 @@ const ALIAS={PITCH:'PD',DECK:'PD',PITCHDECK:'PD',SALESDECK:'SD',BPLAN:'BP',BIZPL
 // Bundle codes expand into more than one service code when typed in the paste dock.
 // COMB = Pitch Deck + Financial Model, the combination most often quoted together.
 const BUNDLES={COMB:['PD','FM']};
-const SECTIONS=[['dash','Dashboard'],['leads','Leads'],['projects','Projects'],['customers','Customer Database'],['team','Team Work & Follow-ups'],['tickets','Tickets'],['invoices','Quotations & Invoices'],['money','Payments'],['reports','Analytics'],['website','Website'],['services','Services'],['email','Email'],['settings','Setup']];
+const SECTIONS=[['dash','Dashboard'],['leads','Leads'],['review','Review Leads'],['projects','Projects'],['customers','Customer Database'],['team','Team Work & Follow-ups'],['tickets','Tickets'],['invoices','Quotations & Invoices'],['money','Payments'],['reports','Analytics'],['website','Website'],['services','Services'],['email','Email'],['settings','Setup']];
 const FEATURES=[['createInvoice','Create quotations & invoices'],['recordPayment','Record payments'],['assignAny','Assign leads to anyone'],
   ['deleteLead','Delete leads'],['export','Export & backup'],['editServices','Edit service catalogue'],['manageUsers','Manage logins & permissions'],['viewAllMoney','See all money figures']];
 const PRESETS={'Get Set Startup':{brand:'#4B0FA0',dark:'#2A0660',accent:'#F0C000',bg:'#F6F3FA'},
@@ -530,7 +530,7 @@ function mergeServerData(remote){
 }
 
 /* ---------- backend ---------- */
-const EXPECTED_BACKEND_VERSION=9;
+const EXPECTED_BACKEND_VERSION=10;
 let backendVersionMismatch=false;
 async function api(action,payload){
   if(!S.settings.api)throw new Error('No backend URL');
@@ -627,7 +627,7 @@ function paintSync(){const el=$('#syncBadge');if(!el)return;
 let inbox=[];
 async function checkInbox(){
   if(!S.settings.api||!me)return;
-  try{const r=await api('pullInbox');if(r.ok){inbox=r.items||[];if(inbox.length&&route==='leads')render();}}catch(e){}
+  try{const r=await api('pullInbox');if(r.ok){inbox=r.items||[];if(inbox.length&&(route==='leads'||route==='review'))render();}}catch(e){}
 }
 // Periodic background refresh so a change made on someone else's device shows up here without
 // needing a manual sign-out/sign-in. Only pulls when this device has nothing unsaved of its
@@ -1061,6 +1061,7 @@ function render(){
   const myDueToday=S.leads.filter(l=>l.assignedTo===me.username&&l.followUp&&l.followUp<=today()&&!DEAD.includes(l.stage)).length;
   const counts={leads:S.leads.filter(l=>OPEN_STAGES.includes(l.stage)).length,
     projects:S.leads.filter(l=>isProject(l)&&l.stage!=='Completed').length,
+    review:inbox.length||'',
     team:myDueToday||'',tickets:openTk||'',invoices:S.invoices.filter(i=>i.type==='proforma'&&i.status!=='cancelled'&&i.status!=='denied'&&paidOn(i.id)<=0).length,money:alerts?'!':''};
   $('#app').innerHTML=`<div class="shell">
   <button class="hamburger" id="hamburger" aria-label="Open menu"><span></span><span></span><span></span></button>
@@ -1075,7 +1076,7 @@ function render(){
       <button class="btn sm ghost" id="myProfile" style="width:100%;margin-bottom:6px">My profile</button>
       <button class="btn sm ghost" id="signout" style="width:100%">Sign out</button></div></nav>
     <main class="main" id="view"></main></div>`;
-  $('#view').innerHTML={dash:vDash,leads:vLeads,projects:vProjects,customers:vCustomers,team:vTeam,tickets:vTickets,invoices:vInvoices,money:vMoney,reports:vReports,website:vWebsite,services:vServices,email:vEmail,settings:vSettings}[route]();
+  $('#view').innerHTML={dash:vDash,leads:vLeads,review:vReviewLeads,projects:vProjects,customers:vCustomers,team:vTeam,tickets:vTickets,invoices:vInvoices,money:vMoney,reports:vReports,website:vWebsite,services:vServices,email:vEmail,settings:vSettings}[route]();
   paintSync();
   $('#signout').onclick=signOut;
   $('#myProfile').onclick=()=>editProfile(me.username);
@@ -1089,6 +1090,31 @@ function render(){
   const rclear=$('#repClear');rclear&&(rclear.onclick=()=>{reportsFilt={from:'',to:'',tag:''};render();});
   const wrs=$('#websiteRangeSel');wrs&&(wrs.onchange=e=>{websiteRange=e.target.value;websiteData=null;render();});
   const wrb=$('#websiteRefreshBtn');wrb&&(wrb.onclick=()=>{websiteData=null;render();});
+  document.querySelectorAll('[data-reviewaccept]').forEach(b=>b.onclick=async()=>{
+    const i=+b.dataset.reviewaccept,p=inbox[i];if(!p)return;
+    const assignSel=document.querySelector(`[data-reviewassign="${i}"]`);
+    const assignTo=assignSel?assignSel.value:'';
+    const codes=[];(p.service||'').split(/[\s,+&/]+/).forEach(t=>{codesFrom(t).forEach(c=>{if(!codes.includes(c))codes.push(c);});});
+    if(!codes.length&&p.service)S.services.forEach(sv=>{const k=sv.name.toLowerCase(),t=(p.service||'').toLowerCase();
+      if((t.includes(k)||t.includes(k.split(' ')[0])&&k.split(' ')[0].length>4)&&!codes.includes(sv.code))codes.push(sv.code);});
+    const l=newLead({name:p.name||'Unnamed',phone:cleanPh(p.phone).slice(-10),email:p.email||'',
+      source:p.source||'Website',services:splitFee(codes,null,{}),notes:p.message||'',
+      assignedTo:assignTo,assignedBy:me.username,assignedAt:new Date().toISOString()});
+    matchCustomerId(l);
+    S.leads.push(l);
+    try{await api('claimInbox',{ids:[p.id]});}catch(err){}
+    inbox=inbox.filter(x=>x!==p);
+    audit('Accepted lead from review: '+l.name+(assignTo?' → assigned to '+nameOf(assignTo):''));
+    save();render();toast('Lead accepted'+(assignTo?', assigned to '+nameOf(assignTo):''));
+  });
+  document.querySelectorAll('[data-reviewreject]').forEach(b=>b.onclick=async()=>{
+    const i=+b.dataset.reviewreject,p=inbox[i];if(!p)return;
+    if(!confirm('Reject this lead as fake/spam? This removes it from the review queue.'))return;
+    try{await api('rejectInbox',{ids:[p.id]});}catch(err){}
+    inbox=inbox.filter(x=>x!==p);
+    audit('Rejected lead from review: '+(p.name||'Unnamed')+' ('+(p.phone||p.email||'no contact')+')');
+    render();toast('Lead rejected');
+  });
   document.querySelectorAll('[data-trendgran]').forEach(el=>el.onclick=()=>{trendGranularity=el.dataset.trendgran;render();});
   const analyticsFilteredLeads=()=>{
     let L=staffLocked()?visibleLeads():S.leads;
@@ -1529,6 +1555,48 @@ function leadCard(l,sno){
         <button class="btn sm ghost" data-hist="${l.id}">Full history</button></div>
     </details>
   </div>`;
+}
+// Every staff member and admin sees this the same way — a shared queue, not a per-person
+// inbox — since any one of them may be the right person to notice a fake lead or know who
+// a real one should go to. Each row gets its own Assign-to dropdown and a Reject button,
+// separate from the older bulk "Review & add" popup (still used from the Leads page banner),
+// since that flow has no way to reject a single entry or assign it directly on the way in.
+function vReviewLeads(){
+  const people=team().filter(t=>t.active);
+  if(!inbox.length){
+    return `<div class="topbar"><div><h1>Review Leads</h1><p class="sub">New leads from the website and other connected sources wait here until someone accepts or rejects them.</p></div></div>
+      <div class="card"><div class="empty">Nothing waiting right now.</div></div>`;
+  }
+  return `<div class="topbar"><div><h1>Review Leads</h1><p class="sub">${inbox.length} lead${inbox.length>1?'s':''} waiting — visible to everyone, so anyone can catch a fake one or assign a real one.</p></div></div>
+  ${inbox.map((p,i)=>{
+    const codes=[];(p.service||'').split(/[\s,+&/]+/).forEach(t=>{codesFrom(t).forEach(c=>{if(!codes.includes(c))codes.push(c);});});
+    if(!codes.length&&p.service)S.services.forEach(sv=>{const k=sv.name.toLowerCase(),t=(p.service||'').toLowerCase();
+      if((t.includes(k)||t.includes(k.split(' ')[0])&&k.split(' ')[0].length>4)&&!codes.includes(sv.code))codes.push(sv.code);});
+    const phone=cleanPh(p.phone).slice(-10);
+    const dupe=S.leads.find(l=>(phone&&cleanPh(l.phone).slice(-10)===phone)||(p.email&&l.email&&l.email.toLowerCase()===p.email.toLowerCase()));
+    return `<div class="card" style="margin-bottom:10px" data-reviewrow="${i}">
+      <div class="row" style="align-items:flex-start;gap:14px">
+        <div style="flex:2;min-width:180px">
+          <b>${esc(p.name||'Unnamed')}</b>
+          <div class="chips" style="margin-top:4px">
+            <span class="chip${phone?'':' miss'}">${phone?esc(phone):'no phone'}</span>
+            <span class="chip">${esc(p.source||'Webhook')}</span>
+            ${codes.length?codes.map(c=>`<span class="chip gold">${esc((svcOf(c)||{}).name||c)}</span>`).join(''):p.service?`<span class="chip">${esc(p.service)}</span>`:''}
+            ${p.email?`<span class="chip">${esc(p.email)}</span>`:''}
+            ${dupe?`<span class="chip" style="color:#B8860B">already in list — ${esc(dupe.name)}</span>`:''}
+          </div>
+          ${p.message?`<div class="sub" style="margin-top:6px">${esc(p.message.slice(0,200))}</div>`:''}
+          <div class="eyebrow" style="margin-top:6px">${esc(fmtDT(p.receivedAt))}</div>
+        </div>
+        <div style="flex:0 0 auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <select data-reviewassign="${i}" style="min-width:150px"><option value="">Assign to…</option>
+            ${people.map(t=>`<option value="${esc(t.username)}">${esc(t.name)}</option>`).join('')}</select>
+          <button class="btn sm green" data-reviewaccept="${i}">✓ Accept</button>
+          <button class="btn sm ghost" data-reviewreject="${i}" style="color:var(--bad)">✕ Reject</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('')}`;
 }
 function vLeads(){
   const rows=leadRows('leads');
