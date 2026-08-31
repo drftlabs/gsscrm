@@ -531,7 +531,7 @@ function mergeServerData(remote){
 }
 
 /* ---------- backend ---------- */
-const EXPECTED_BACKEND_VERSION=10;
+const EXPECTED_BACKEND_VERSION=11;
 let backendVersionMismatch=false;
 async function api(action,payload){
   if(!S.settings.api)throw new Error('No backend URL');
