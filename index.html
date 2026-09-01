@@ -1391,9 +1391,9 @@ function vDash(){
     <div class="spacer"></div><button class="btn gold" data-go="leads">+ Add leads</button></div>
   ${hideMoney?'':`<div class="card" style="margin-bottom:12px"><div class="row" style="align-items:center;gap:6px"><h2 style="margin:0">Target</h2>
       <div class="spacer"></div>
-      <button class="btn sm ghost" id="dashMonthPrev" style="flex:0 0 auto;width:30px;padding:0">‹</button>
-      <input type="month" id="dashMonthSel" value="${curDashMonth()}" style="flex:0 0 auto;width:130px;height:30px;padding:0 6px;font-size:13px">
-      <button class="btn sm ghost" id="dashMonthNext" style="flex:0 0 auto;width:30px;padding:0">›</button></div>
+      <button class="btn sm ghost" id="dashMonthPrev" style="flex:0 0 30px;width:30px;min-width:30px;padding:0;justify-content:center">‹</button>
+      <input type="month" id="dashMonthSel" value="${curDashMonth()}" style="flex:0 0 130px;width:130px;height:30px;padding:0 6px;font-size:13px">
+      <button class="btn sm ghost" id="dashMonthNext" style="flex:0 0 30px;width:30px;min-width:30px;padding:0;justify-content:center">›</button></div>
     <div class="row" style="align-items:baseline"><div class="num" style="font-size:24px;font-weight:600">${inr(got)}</div>
       <div class="sub" style="text-align:right">${tgt?'of '+inr(tgt)+' · '+Math.round(got/tgt*100)+'%':'no target set'}</div></div>
     <div class="target"><i style="width:${tgt?Math.min(100,got/tgt*100):0}%"></i></div>
@@ -4595,4 +4595,4 @@ function newLead(o){
     createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),lastTouch:''},o);
 }
 </script>
-</body></html>  
+</body></html>
