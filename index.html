@@ -343,6 +343,9 @@ const inr=n=>'₹'+Number(n||0).toLocaleString('en-IN',{maximumFractionDigits:2}
 const short=n=>{n=Number(n||0);if(n>=1e7)return '₹'+(n/1e7).toFixed(2)+' Cr';if(n>=1e5)return '₹'+(n/1e5).toFixed(2)+' L';if(n>=1e3)return '₹'+(n/1e3).toFixed(1)+'k';return inr(n);};
 const today=()=>new Date().toISOString().slice(0,10);
 const month=()=>today().slice(0,7);
+let dashMonth='';
+const curDashMonth=()=>dashMonth||month();
+const shiftMonth=(m,delta)=>{const d=new Date(m+'-01T00:00:00');d.setMonth(d.getMonth()+delta);return d.toISOString().slice(0,7);};
 const fmtD=d=>{if(!d)return '—';const dt=new Date(d+'T00:00:00');
   return String(dt.getDate()).padStart(2,'0')+'/'+String(dt.getMonth()+1).padStart(2,'0')+'/'+dt.getFullYear();};
 const fmtDT=t=>{const dt=new Date(t);
@@ -531,7 +534,7 @@ function mergeServerData(remote){
 }
 
 /* ---------- backend ---------- */
-const EXPECTED_BACKEND_VERSION=11;
+const EXPECTED_BACKEND_VERSION=12;
 let backendVersionMismatch=false;
 async function api(action,payload){
   if(!S.settings.api)throw new Error('No backend URL');
@@ -1071,7 +1074,19 @@ function render(){
     }
   };
   wfd&&(wfd.onchange=tryCustomRange);wtd&&(wtd.onchange=tryCustomRange);
-  const wcc=$('#websiteClearCustom');wcc&&(wcc.onclick=()=>{websiteCustomFrom='';websiteCustomTo='';websiteData=null;render();});
+  const wcfd=$('#websiteCompareFromDate'),wctd=$('#websiteCompareToDate');
+  const tryCompareRange=()=>{
+    if(wcfd&&wctd&&wcfd.value&&wctd.value&&wcfd.value<=wctd.value){
+      websiteCompareFrom=wcfd.value;websiteCompareTo=wctd.value;websiteData=null;render();
+    }
+  };
+  wcfd&&(wcfd.onchange=tryCompareRange);wctd&&(wctd.onchange=tryCompareRange);
+  const wcc=$('#websiteClearCustom');wcc&&(wcc.onclick=()=>{websiteCustomFrom='';websiteCustomTo='';websiteCompareFrom='';websiteCompareTo='';websiteCompareData=null;websiteData=null;render();});
+  const wkf=$('#websiteKeywordFilter');wkf&&(wkf.oninput=e=>{websiteKeywordFilter=e.target.value;render();});
+  drawIndiaMap();
+  const dmp=$('#dashMonthPrev');dmp&&(dmp.onclick=()=>{dashMonth=shiftMonth(curDashMonth(),-1);render();});
+  const dmn=$('#dashMonthNext');dmn&&(dmn.onclick=()=>{dashMonth=shiftMonth(curDashMonth(),1);render();});
+  const dms=$('#dashMonthSel');dms&&(dms.onchange=e=>{if(e.target.value)dashMonth=e.target.value;render();});
   document.querySelectorAll('[data-webgran]').forEach(b=>b.onclick=()=>{websiteGranularity=b.dataset.webgran;render();});
   document.querySelectorAll('[data-trendgran]').forEach(el=>el.onclick=()=>{trendGranularity=el.dataset.trendgran;render();});
   const analyticsFilteredLeads=()=>{
@@ -1337,7 +1352,7 @@ function vDash(){
   const openL=L.filter(x=>OPEN_STAGES.includes(x.stage));
   const forecastable=L.filter(l=>['Interested','Quotation Sent'].includes(l.stage));
   const forecast=forecastable.reduce((s,l)=>s+leadDealValue(l.id)*(PROB[l.stage]||0),0);
-  const got=recognisedIn(month()),tgt=targetOf(month());
+  const got=recognisedIn(curDashMonth()),tgt=targetOf(curDashMonth());
   const pending=L.filter(isProject).reduce((s,l)=>s+leadBalance(l.id),0);
   const hot=L.filter(l=>OPEN_STAGES.includes(l.stage)).map(l=>({l,s:score(l)})).sort((a,b)=>b.s-a.s).slice(0,6);
   const due=L.filter(x=>x.followUp&&x.followUp<=today()&&OPEN_STAGES.includes(x.stage));
@@ -1374,7 +1389,11 @@ function vDash(){
   return `${syncWarningBanner()}${inboxBanner()}<div class="topbar"><div><h1>Hello, ${esc((me.name||'').split(' ')[0])}</h1>
     <p class="sub">${new Date().toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long'})} · ${mine.length} open leads with you</p></div>
     <div class="spacer"></div><button class="btn gold" data-go="leads">+ Add leads</button></div>
-  ${hideMoney?'':`<div class="card" style="margin-bottom:12px"><h2>This month's target</h2>
+  ${hideMoney?'':`<div class="card" style="margin-bottom:12px"><div class="row" style="align-items:center"><h2 style="margin:0">Target</h2>
+      <div class="spacer"></div>
+      <button class="btn sm ghost" id="dashMonthPrev" style="flex:0 0 auto">‹</button>
+      <input type="month" id="dashMonthSel" value="${curDashMonth()}" style="flex:0 0 auto">
+      <button class="btn sm ghost" id="dashMonthNext" style="flex:0 0 auto">›</button></div>
     <div class="row" style="align-items:baseline"><div class="num" style="font-size:24px;font-weight:600">${inr(got)}</div>
       <div class="sub" style="text-align:right">${tgt?'of '+inr(tgt)+' · '+Math.round(got/tgt*100)+'%':'no target set'}</div></div>
     <div class="target"><i style="width:${tgt?Math.min(100,got/tgt*100):0}%"></i></div>
@@ -3242,6 +3261,19 @@ function trendBuckets(fromStr,toStr,granularity){
   return buckets;
 }
 let websiteRange='7d',websiteData=null,websiteLoading=false,websiteCustomFrom='',websiteCustomTo='',websiteGranularity='day';
+let websiteCompareFrom='',websiteCompareTo='',websiteCompareData=null;
+let websiteKeywordFilter='';
+// Coordinates for common Indian cities GA4 reports — used to plot the "visitors by city" map.
+// Cities not in this list are still shown in the table, just not plotted (no coordinate to place them at).
+const INDIA_CITY_COORDS={'Mumbai':[19.076,72.877],'Delhi':[28.704,77.102],'Bengaluru':[12.972,77.594],
+  'Bangalore':[12.972,77.594],'Hyderabad':[17.385,78.487],'Chennai':[13.083,80.271],'Kolkata':[22.573,88.364],
+  'Pune':[18.520,73.856],'Ahmedabad':[23.023,72.572],'Jaipur':[26.913,75.787],'Surat':[21.170,72.831],
+  'Lucknow':[26.847,80.947],'Kanpur':[26.449,80.332],'Nagpur':[21.146,79.089],'Indore':[22.719,75.858],
+  'Noida':[28.535,77.391],'Gurgaon':[28.459,77.026],'Gurugram':[28.459,77.026],'Chandigarh':[30.734,76.779],
+  'Bhopal':[23.259,77.413],'Patna':[25.594,85.138],'Vadodara':[22.307,73.181],'Ghaziabad':[28.669,77.454],
+  'Ludhiana':[30.901,75.857],'Coimbatore':[11.017,76.956],'Kochi':[9.931,76.267],'Visakhapatnam':[17.687,83.219],
+  'Nashik':[19.998,73.789],'Faridabad':[28.408,77.317],'Rajkot':[22.303,70.802],'Varanasi':[25.318,82.974],
+  'Amritsar':[31.634,74.872],'Thiruvananthapuram':[8.524,76.937],'Guwahati':[26.145,91.736]};
 // Buckets GA4's day-by-day rows into day/week/month points for the trend graph, reusing the
 // same aggregation idea as trendBuckets() elsewhere in Analytics -- GA4 always returns daily
 // rows regardless of the selected range, so week/month views are built by summing days here
@@ -3274,13 +3306,34 @@ function bucketDailyRows(dailyRows,granularity){
   });
   return Object.values(buckets).sort((a,b)=>a.sortKey<b.sortKey?-1:1);
 }
+function drawIndiaMap(){
+  const box=$('#websiteIndiaMap');if(!box||!websiteData||!websiteData.byCity)return;
+  const rows=(websiteData.byCity||[]).map(r=>({city:r.city,users:Number(r.users)||0,coords:INDIA_CITY_COORDS[r.city]})).filter(r=>r.coords&&r.users>0);
+  if(!rows.length){box.innerHTML='<p class="sub" style="text-align:center">No mappable city data for this window.</p>';return;}
+  const W=480,H=520,latMin=6,latMax=37,lonMin=68,lonMax=98;
+  const x=lon=>((lon-lonMin)/(lonMax-lonMin))*W;
+  const y=lat=>H-((lat-latMin)/(latMax-latMin))*H;
+  const maxUsers=Math.max(...rows.map(r=>r.users));
+  const rFor=u=>4+Math.sqrt(u/maxUsers)*22;
+  const totalUsers=rows.reduce((s,r)=>s+r.users,0);
+  const dots=rows.map(r=>{
+    const cx=x(r.coords[1]),cy=y(r.coords[0]),rad=rFor(r.users);
+    return `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="${rad.toFixed(1)}" fill="var(--brand)" fill-opacity="0.55" stroke="var(--brand)" stroke-width="1.5"><title>${esc(r.city)}: ${r.users} active users</title></circle>
+      ${rad>10?`<text x="${cx.toFixed(1)}" y="${cy.toFixed(1)}" text-anchor="middle" dy="4" font-size="10" fill="#fff" font-weight="600">${esc(r.city)}</text>`:''}`;
+  }).join('');
+  box.innerHTML=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;background:var(--bg2,#f6f5fa);border-radius:12px">${dots}</svg>
+    <p class="sub" style="text-align:center;margin-top:6px">${totalUsers} active users across ${rows.length} mapped cities. Bubble size reflects relative volume — approximate positions, not a precise map.</p>`;
+}
 function loadWebsiteAnalytics(){
   websiteLoading=true;
   const params={range:websiteRange};
   if(websiteCustomFrom&&websiteCustomTo){params.startDate=websiteCustomFrom;params.endDate=websiteCustomTo;}
-  api('getWebsiteAnalytics',params).then(r=>{
+  const calls=[api('getWebsiteAnalytics',params)];
+  if(websiteCompareFrom&&websiteCompareTo)calls.push(api('getWebsiteAnalytics',{startDate:websiteCompareFrom,endDate:websiteCompareTo}));
+  Promise.all(calls).then(([r,rc])=>{
     websiteLoading=false;
     if(r.ok){websiteData=r;}else{websiteData={error:r.error||'Could not load website analytics.'};}
+    websiteCompareData=(rc&&rc.ok)?rc:null;
     if(route==='website')render();
   });
 }
@@ -3297,7 +3350,7 @@ function vWebsite(){
       <div class="card"><div class="empty" style="color:var(--bad)">Could not load website analytics: ${esc(websiteData.error)}</div>
       <p class="sub" style="margin-top:8px">Check that the GA4 credentials are set up correctly in Code.gs (setupGA4Credentials, then testGA4Connection from the Apps Script editor).</p></div>`;
   }
-  const d=websiteData||{totals:{},totalsPrior:{},byPage:[],bySource:[],byKeyword:[],byCity:[],byDevice:[],daily:[],leadsByPage:[],convertingSessionDuration:0};
+  const d=websiteData||{totals:{},totalsPrior:{},byPage:[],bySource:[],byKeyword:[],byCity:[],byDevice:[],daily:[],leadsByPage:[],callClicksByPage:[],waClicksByPage:[],convertingSessionDuration:0};
   const t=d.totals||{},tp=d.totalsPrior||{};
   const PAGE_NAMES={'/':'Home','/pitch-deck':'Pitch Deck','/project-report':'Project Report',
     '/feasibility-study':'Feasibility Study','/market-research':'Market Research','/business-plan':'Business Plan',
@@ -3306,29 +3359,64 @@ function vWebsite(){
     '/contact-us':'Contact Us'};
   const nameOfPath=p=>PAGE_NAMES[p]||p;
   const leadsMap={};(d.leadsByPage||[]).forEach(r=>{leadsMap[r.path]=Number(r.count)||0;});
+  const callMap={};(d.callClicksByPage||[]).forEach(r=>{callMap[r.path]=Number(r.count)||0;});
+  const waMap={};(d.waClicksByPage||[]).forEach(r=>{waMap[r.path]=Number(r.count)||0;});
   const pageRows=[...(d.byPage||[])].sort((a,b)=>Number(b.views)-Number(a.views));
   const totalLeads=(d.leadsByPage||[]).reduce((s,r)=>s+(Number(r.count)||0),0);
+  const totalCalls=(d.callClicksByPage||[]).reduce((s,r)=>s+(Number(r.count)||0),0);
+  const totalWa=(d.waClicksByPage||[]).reduce((s,r)=>s+(Number(r.count)||0),0);
   const convPct=t.sessions?Math.round(totalLeads/t.sessions*1000)/10:0;
-  // Delta vs the prior period of equal length — the backend already computed the correct
-  // comparison window, this just turns the two totals into a "+X%"/"-X%" label.
+  // Delta vs the prior period of equal length, OR vs the explicit compare-to range if one is set.
+  const cd=websiteCompareData,ct=cd?(cd.totals||{}):tp;
+  const compareLabel=cd?`${fmtD(websiteCompareFrom)} – ${fmtD(websiteCompareTo)}`:'last period';
   const delta=(cur,prior)=>{
     if(!prior)return cur>0?{txt:'new',cls:'hi'}:{txt:'—',cls:''};
     const pct=Math.round((cur-prior)/prior*1000)/10;
-    return {txt:(pct>=0?'+':'')+pct+'% vs last period',cls:pct>=0?'hi':'bad'};
+    return {txt:(pct>=0?'+':'')+pct+'% vs '+compareLabel,cls:pct>=0?'hi':'bad'};
   };
-  const dViews=delta(t.views,tp.views),dSessions=delta(t.sessions,tp.sessions),dConv=delta(t.conversions,tp.conversions);
+  const dViews=delta(t.views,ct.views),dSessions=delta(t.sessions,ct.sessions),dConv=delta(t.conversions,ct.conversions);
   const fmtSec=s=>{s=Math.round(Number(s)||0);const m=Math.floor(s/60),r=s%60;return m?`${m}m ${r}s`:`${r}s`;};
   const bucketed=bucketDailyRows(d.daily,websiteGranularity);
+  // Leads actually added in the CRM from the website, grouped into the same buckets as the
+  // traffic graph, so real accepted leads can be overlaid against raw visits.
+  const websiteLeadsCRM=S.leads.filter(l=>l.source&&String(l.source).indexOf('Website')===0);
+  const crmLeadsByDay={};websiteLeadsCRM.forEach(l=>{const k=l.createdAt.slice(0,10).replace(/-/g,'');crmLeadsByDay[k]=(crmLeadsByDay[k]||0)+1;});
+  function bucketCrmLeads(granularity){
+    if(!d.daily||!d.daily.length)return [];
+    const parsed=d.daily.map(r=>{
+      const y=r.date.slice(0,4),m=r.date.slice(4,6),dd=r.date.slice(6,8);
+      return {dateObj:new Date(`${y}-${m}-${dd}T00:00:00`),count:crmLeadsByDay[r.date]||0};
+    });
+    if(granularity==='day')return parsed.map(r=>r.count);
+    const buckets={};
+    parsed.forEach(r=>{
+      let key;
+      if(granularity==='week'){const wk=new Date(r.dateObj);wk.setDate(wk.getDate()-((wk.getDay()+6)%7));key=wk.toISOString().slice(0,10);}
+      else key=r.dateObj.toISOString().slice(0,7);
+      buckets[key]=(buckets[key]||0)+r.count;
+    });
+    return Object.keys(buckets).sort().map(k=>buckets[k]);
+  }
+  const crmLeadsSeries=bucketCrmLeads(websiteGranularity);
   const DEVICE_LABEL={mobile:'Mobile',desktop:'Desktop',tablet:'Tablet'};
+  const keywords=(d.byKeyword||[]).filter(r=>!websiteKeywordFilter||r.keyword.toLowerCase().includes(websiteKeywordFilter.toLowerCase()));
 
   return `<div class="topbar"><div><h1>Website</h1><p class="sub">Real traffic from Google Analytics — ${esc(rangeLabel)}.</p></div><div class="spacer"></div>
     <select id="websiteRangeSel"><option value="7d"${!usingCustom&&websiteRange==='7d'?' selected':''}>Last 7 days</option>
       <option value="30d"${!usingCustom&&websiteRange==='30d'?' selected':''}>Last 30 days</option>
       <option value="90d"${!usingCustom&&websiteRange==='90d'?' selected':''}>Last 90 days</option></select>
-    <input type="date" id="websiteFromDate" value="${esc(websiteCustomFrom)}" title="Custom range start">
-    <input type="date" id="websiteToDate" value="${esc(websiteCustomTo)}" title="Custom range end">
-    ${usingCustom?'<button class="btn sm ghost" id="websiteClearCustom">Clear custom range</button>':''}
     <button class="btn sm ghost" id="websiteRefreshBtn">↻ Refresh</button></div>
+  <div class="card" style="margin-bottom:12px"><div class="row" style="align-items:center;flex-wrap:wrap;gap:10px">
+    <div><label class="eyebrow">Show data for</label><div class="row" style="gap:6px">
+      <input type="date" id="websiteFromDate" value="${esc(websiteCustomFrom)}">
+      <span class="sub">to</span>
+      <input type="date" id="websiteToDate" value="${esc(websiteCustomTo)}"></div></div>
+    <div><label class="eyebrow">Compare to</label><div class="row" style="gap:6px">
+      <input type="date" id="websiteCompareFromDate" value="${esc(websiteCompareFrom)}">
+      <span class="sub">to</span>
+      <input type="date" id="websiteCompareToDate" value="${esc(websiteCompareTo)}"></div></div>
+    ${(usingCustom||websiteCompareFrom)?'<button class="btn sm ghost" id="websiteClearCustom" style="align-self:flex-end">Clear dates</button>':''}
+  </div></div>
   <div class="kpis">
     ${kpi('Page views',t.views||0,dViews.txt,dViews.cls)}
     ${kpi('Sessions',t.sessions||0,dSessions.txt,dSessions.cls)}
@@ -3352,35 +3440,72 @@ function vWebsite(){
     ${bucketed.length?multiLineChart(bucketed.map(b=>b.label),[
       {key:'views',label:'Page views',color:LINE_COLORS[0],values:bucketed.map(b=>b.views)},
       {key:'sessions',label:'Sessions',color:LINE_COLORS[2],values:bucketed.map(b=>b.sessions)},
-      {key:'conversions',label:'Form submissions',color:LINE_COLORS[1],values:bucketed.map(b=>b.conversions)}
+      {key:'conversions',label:'GA4 form events',color:LINE_COLORS[1],values:bucketed.map(b=>b.conversions)},
+      {key:'crmleads',label:'Leads added in CRM',color:LINE_COLORS[4],values:crmLeadsSeries}
     ],new Set())
     :'<div class="empty">No daily data for this window yet.</div>'}
+    <p class="sub" style="margin-top:6px">"GA4 form events" is what Analytics recorded firing; "Leads added in CRM" is what actually landed in your Leads list after review — the two can differ if a submission was rejected or GA4's event fired without a full backend save.</p>
   </div>
 
   <div class="card" style="margin-top:14px"><h2>Views by page</h2>
-    <div class="tablewrap"><table><thead><tr><th>Page</th><th>Views</th><th>Sessions</th><th>Engagement rate</th><th>Avg. time</th><th>Form submissions</th><th>Conv. rate</th></tr></thead><tbody>
+    <div class="tablewrap"><table><thead><tr><th>Page</th><th>Views</th><th>Sessions</th><th>Engagement rate</th><th>Avg. time (retention proxy)</th><th>Form submissions</th><th>Conv. rate</th></tr></thead><tbody>
     ${pageRows.length?pageRows.map(r=>{
       const leads=leadsMap[r.path]||0,cr=Number(r.sessions)?Math.round(leads/Number(r.sessions)*1000)/10:0;
       return `<tr><td><b>${esc(nameOfPath(r.path))}</b><div class="eyebrow">${esc(r.path)}</div></td>
       <td class="num">${r.views}</td><td class="num">${r.sessions}</td>
       <td class="num">${Math.round((Number(r.engagementRate)||0)*100)}%</td>
-      <td class="num">${fmtSec(r.avgDuration)}</td>
+      <td class="num" style="${Number(r.avgDuration)>=10?'color:var(--ok)':''}">${fmtSec(r.avgDuration)}</td>
       <td class="num" style="font-weight:600;${leads?'color:var(--ok)':''}">${leads}</td>
       <td class="num">${cr}%</td></tr>`;
     }).join('')
       :'<tr><td colspan="7"><div class="empty">No page data for this window.</div></td></tr>'}
-    </tbody></table></div></div>
+    </tbody></table></div>
+    <p class="sub" style="margin-top:6px">"Retention proxy" is average session time per page — GA4 has no native ">10 second" metric without extra custom-event setup, so this is the closest honest stand-in; green means 10s or more.</p>
+  </div>
+
+  <div class="card" style="margin-top:14px"><h2>Call &amp; WhatsApp clicks by page</h2>
+    <p class="sub" style="margin-bottom:8px">Needs a one-time GA4 setup — the "method" custom dimension — to split by type. See setup note below the table.</p>
+    <div class="tablewrap"><table><thead><tr><th>Page</th><th>Call clicks</th><th>WhatsApp clicks</th><th>% of sessions</th></tr></thead><tbody>
+    ${pageRows.length?pageRows.map(r=>{
+      const calls=callMap[r.path]||0,wa=waMap[r.path]||0,sess=Number(r.sessions)||0;
+      const pct=sess?Math.round((calls+wa)/sess*1000)/10:0;
+      return `<tr><td><b>${esc(nameOfPath(r.path))}</b></td><td class="num">${calls}</td><td class="num">${wa}</td><td class="num">${pct}%</td></tr>`;
+    }).join(''):'<tr><td colspan="4"><div class="empty">No click data yet.</div></td></tr>'}
+    </tbody></table></div>
+    <p class="sub" style="margin-top:6px">In GA4: Admin → Custom definitions → Create custom dimension → scope "Event" → parameter name "method". Without this step the clicks are still recorded but can't be split by call vs. WhatsApp.</p>
+  </div>
+
+  <div class="card" style="margin-top:14px"><h2>Total interaction by page</h2>
+    <p class="sub" style="margin-bottom:8px">Call clicks + WhatsApp clicks + form submissions, against total page views — a broader read on engagement than form conversion alone.</p>
+    <div class="tablewrap"><table><thead><tr><th>Page</th><th>Views</th><th>Total interactions</th><th>% of views</th><th>Leads added in CRM</th></tr></thead><tbody>
+    ${pageRows.length?pageRows.map(r=>{
+      const inter=(callMap[r.path]||0)+(waMap[r.path]||0)+(leadsMap[r.path]||0);
+      const views=Number(r.views)||0,pct=views?Math.round(inter/views*1000)/10:0;
+      return `<tr><td><b>${esc(nameOfPath(r.path))}</b></td><td class="num">${views}</td>
+        <td class="num" style="font-weight:600">${inter}</td><td class="num">${pct}%</td>
+        <td class="num">${leadsMap[r.path]||0}</td></tr>`;
+    }).join(''):'<tr><td colspan="5"><div class="empty">No data yet.</div></td></tr>'}
+    </tbody></table></div>
+  </div>
 
   <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(280px,1fr));margin-top:14px">
     <div class="card"><h2>Traffic sources</h2>${barsHTML((d.bySource||[]).map(r=>[r.channel,Number(r.sessions)||0]).sort((a,b)=>b[1]-a[1]))}</div>
     <div class="card"><h2>Device type</h2>${barsHTML((d.byDevice||[]).map(r=>[DEVICE_LABEL[r.device]||r.device,Number(r.sessions)||0]).sort((a,b)=>b[1]-a[1]))}</div>
-    <div class="card"><h2>Visitors by city</h2>${barsHTML((d.byCity||[]).map(r=>[r.city,Number(r.sessions)||0]).sort((a,b)=>b[1]-a[1]))}</div>
   </div>
 
+  <div class="card" style="margin-top:14px"><h2>Active users by city</h2>
+    <div id="websiteIndiaMap" style="width:100%;max-width:520px;margin:0 auto"></div>
+    <div class="tablewrap" style="margin-top:10px"><table><thead><tr><th>City</th><th>Active users</th><th>Sessions</th></tr></thead><tbody>
+    ${(d.byCity||[]).length?[...d.byCity].sort((a,b)=>Number(b.users)-Number(a.users)).slice(0,15).map(r=>
+      `<tr><td>${esc(r.city)}</td><td class="num" style="font-weight:600">${r.users}</td><td class="num">${r.sessions}</td></tr>`).join('')
+      :'<tr><td colspan="3"><div class="empty">No city data yet.</div></td></tr>'}
+    </tbody></table></div></div>
+
   <div class="card" style="margin-top:14px"><h2>Best-performing keywords</h2>
+    <div class="row" style="margin-bottom:8px"><input id="websiteKeywordFilter" placeholder="Filter keywords…" value="${esc(websiteKeywordFilter)}" style="max-width:280px"></div>
     <p class="sub" style="margin-bottom:8px">Only shows keywords Google Ads has actually reported — the search terms behind your paid campaigns, not organic search (Google withholds those for privacy).</p>
-    ${(d.byKeyword||[]).length?(()=>{
-      const kw=[...d.byKeyword].sort((a,b)=>Number(b.conversions)-Number(a.conversions)||Number(b.sessions)-Number(a.sessions));
+    ${keywords.length?(()=>{
+      const kw=[...keywords].sort((a,b)=>Number(b.conversions)-Number(a.conversions)||Number(b.sessions)-Number(a.sessions));
       return `<div class="tablewrap"><table><thead><tr><th>Keyword</th><th>Sessions</th><th>Conversions</th><th>Conv. rate</th></tr></thead><tbody>
         ${kw.map(r=>{const cr=Number(r.sessions)?Math.round(Number(r.conversions)/Number(r.sessions)*1000)/10:0;
           return `<tr><td>${esc(r.keyword)}</td><td class="num">${r.sessions}</td><td class="num" style="font-weight:600;${Number(r.conversions)?'color:var(--ok)':''}">${r.conversions}</td><td class="num">${cr}%</td></tr>`;}).join('')}
@@ -3561,6 +3686,13 @@ function vReports(){
         <span class="eyebrow">${esc(leadSvcNames(l)||'—')}</span><div class="num">${leadDealValue(l.id)?short(leadDealValue(l.id)):''}</div></div>`).join('')||'<div class="eyebrow">empty</div>'}
       <div class="eyebrow" style="margin-top:6px">${short(items.reduce((s,l)=>s+leadDealValue(l.id),0))}</div></div>`;}).join('')}
   </div></div>
+  <div class="card" style="margin-top:12px"><h2>Target by month</h2>
+    <div class="tablewrap"><table><thead><tr><th>Month</th><th>Target</th><th>Achieved</th><th>%</th></tr></thead><tbody>
+    ${mo6.map(m=>{const tgt=targetOf(m),got=recognisedIn(m),pct=tgt?Math.round(got/tgt*100):0;
+      return `<tr><td>${new Date(m+'-01').toLocaleDateString('en-IN',{month:'short',year:'numeric'})}</td>
+        <td class="num">${tgt?inr(tgt):'—'}</td><td class="num">${inr(got)}</td>
+        <td class="num" style="font-weight:600;${pct>=100?'color:var(--ok)':pct>=60?'':'color:var(--bad)'}">${tgt?pct+'%':'—'}</td></tr>`;}).join('')}
+    </tbody></table></div></div>
   <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(300px,1fr));margin-top:12px">
     <div class="card"><h2>Leads per month</h2>${spark(mo6,leadsBy,false)}</div>
     <div class="card"><h2>Revenue recognised per month</h2>${spark(mo6,mo6.map(m=>recognisedIn(m)),true)}</div>
@@ -4463,4 +4595,4 @@ function newLead(o){
     createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),lastTouch:''},o);
 }
 </script>
-</body></html>
+</body></html>  
