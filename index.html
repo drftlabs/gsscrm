@@ -304,7 +304,9 @@ const WORK=['Not started','In progress','Sent for review','Changes requested','F
 // closing). New/Contacted/Call Later carry no weight here — they're too early to forecast
 // against, even though they're still visible everywhere else as open leads.
 const PROB={'New':0,'Contacted':0,'Interested':.3,'Call Later':0,'Quotation Sent':.55,'Advance Paid':.9,'Completed':1,'On Hold':0,'Not Interested':0,'Lost':0,'Fake':0};
-const SOURCES=['Wix form','WhatsApp','Call','Referral','Instagram','Partner','Walk-in','CSV import','Other'];
+const SOURCES=['Wix form','WhatsApp','Call','Referral','Instagram','Partner','Walk-in','CSV import','Google','Facebook','LinkedIn','ChatGPT','Website','Other'];
+const leadSources=()=>{const a=(S.settings&&Array.isArray(S.settings.leadSources))?S.settings.leadSources:SOURCES;return [...new Set(a.map(x=>String(x||'').trim()).filter(Boolean))];};
+function sourceFromUrl(fallback){try{const u=new URL(location.href);const raw=u.searchParams.get('lead_source')||u.searchParams.get('utm_source')||u.searchParams.get('source');if(!raw)return fallback||'';const val=decodeURIComponent(raw).trim();const found=leadSources().find(x=>x.toLowerCase()===val.toLowerCase());return found||val;}catch(e){return fallback||'';}}
 const MODES=['UPI','Bank transfer','Cash','Cheque','Card','Other'];
 const TAGS=['GSS','PYCM','NC'];
 const CATALOG=[
@@ -1285,14 +1287,19 @@ function startedMonth(leadId){
   return null;
 }
 function recognisedIn(m){
-  return S.leads.filter(l=>startedMonth(l.id)===m)
-    .reduce((s,l)=>s+leadDealValue(l.id),0);
+  // Attribute the full business value to the month the lead first arrived, not the later
+  // month in which a quotation, invoice, or payment was recorded. Count leads with a real
+  // commercial action (quotation/invoice/payment) or a converted project stage.
+  return S.leads.filter(l=>(l.createdAt||l.date||'').slice(0,7)===m &&
+    (S.invoices.some(i=>i.leadId===l.id&&i.status!=='cancelled'&&i.status!=='denied') || leadPaid(l.id)>0 || LIVE.includes(l.stage)))
+    .reduce((sum,l)=>sum+leadDealValue(l.id),0);
 }
 // Simpler revenue-by-month view requested for the P&L: the calendar month the LEAD arrived in is
 // the month its (eventual) value counts as revenue, regardless of when it was actually paid.
 // Only counts leads that did convert (paid something), so pure enquiries that went nowhere don't inflate revenue.
 function revenueByLeadMonth(m){
-  return S.leads.filter(l=>l.createdAt.slice(0,7)===m&&leadPaid(l.id)>0)
+  return S.leads.filter(l=>(l.createdAt||l.date||'').slice(0,7)===m &&
+    (S.invoices.some(i=>i.leadId===l.id&&i.status!=='cancelled'&&i.status!=='denied') || leadPaid(l.id)>0 || LIVE.includes(l.stage)))
     .reduce((s,l)=>s+leadDealValue(l.id),0);
 }
 function expensesIn(m,kind){
@@ -1590,7 +1597,7 @@ function acceptOneInbox_(p,assignTo){
   if(!codes.length&&p.service)S.services.forEach(sv=>{const k=sv.name.toLowerCase(),t=(p.service||'').toLowerCase();
     if((t.includes(k)||t.includes(k.split(' ')[0])&&k.split(' ')[0].length>4)&&!codes.includes(sv.code))codes.push(sv.code);});
   const l=newLead({name:p.name||'Unnamed',phone:cleanPh(p.phone).slice(-10),email:p.email||'',
-    source:p.source||'Website',services:splitFee(codes,null,{}),notes:p.message||'',
+    source:sourceFromUrl(p.source||'Website'),services:splitFee(codes,null,{}),notes:p.message||'',
     assignedTo:assignTo||'',assignedBy:me.username,assignedAt:new Date().toISOString()});
   matchCustomerId(l);S.leads.push(l);
   audit('Accepted lead from review: '+l.name+(assignTo?' → assigned to '+nameOf(assignTo):''));
@@ -1660,7 +1667,7 @@ function vLeads(){
 PYCM Priya Nair DPR TEV 1.2L
 9876543210"></textarea>
     <div class="row" style="margin-top:8px">
-      <select id="pasteSource">${SOURCES.map(s=>`<option${s==='WhatsApp'?' selected':''}>${s}</option>`).join('')}</select>
+      <select id="pasteSource">${leadSources().map(s=>`<option${s==='WhatsApp'?' selected':''}>${s}</option>`).join('')}</select>
       <select id="pasteAssign"><option value="">Assign to nobody</option>${team().map(t=>`<option value="${esc(t.username)}"${t.username===me.username?' selected':''}>${esc(t.name)}</option>`).join('')}</select>
       <button class="btn gold" id="doParse">Read it</button><button class="btn ghost" id="clearPaste">Clear</button>
       <button class="btn ghost" id="csvBtn">⭱ CSV file</button><input type="file" id="csvIn" accept=".csv,.txt" style="display:none">
@@ -1675,7 +1682,7 @@ PYCM Priya Nair DPR TEV 1.2L
     <div class="row">
       <label class="f"><span>Service</span><select id="qs"><option value="">— pick —</option>${S.services.map(s=>`<option value="${s.code}">${esc(s.name)}</option>`).join('')}</select></label>
       <label class="f"><span>Fee for this client</span><input id="qf" type="number" inputmode="numeric"></label>
-      <label class="f"><span>Source</span><select id="qsrc">${SOURCES.map(s=>`<option${s==='Call'?' selected':''}>${s}</option>`).join('')}</select></label></div>
+      <label class="f"><span>Source</span><select id="qsrc">${leadSources().map(s=>`<option${s==='Call'?' selected':''}>${s}</option>`).join('')}</select></label></div>
     <button class="btn wide" id="quickAdd">Add lead</button></details>
   ${filterBar('leads')}
   <div id="leadList">${rows.length?rows.map((l,ix)=>leadCard(l,ix+1)).join(''):`<div class="card"><div class="empty"><b>No leads here</b>Change the filter, or add new leads above.</div></div>`}</div>`;
@@ -1954,10 +1961,11 @@ function openLead(id){
     ${ph?`<div class="card"><div class="eyebrow">Ready-made messages</div><div class="row" style="margin-top:8px">
       ${(S.settings.msgTemplates||[]).map(t=>`<button class="btn sm ghost" data-tmpl="${esc(t.id)}">${esc(t.label)}</button>`).join('')}</div></div>`:''}
     <div class="card"><h2>Ownership &amp; stage</h2>
+      <div class="row"><label class="f"><span>Lead date (used for monthly business attribution)</span><input type="date" data-lead-date value="${esc((l.createdAt||l.date||today()).slice(0,10))}"></label></div>
       <div class="row">
         <label class="f"><span>Assigned to</span><select id="dass">${'<option value="">— nobody —</option>'+team().map(t=>`<option value="${esc(t.username)}"${l.assignedTo===t.username?' selected':''}>${esc(t.name)}</option>`).join('')}</select></label>
         <label class="f"><span>Stage</span><select data-ed="stage">${STAGES.concat(S.settings.customStages||[]).map(s=>`<option${l.stage===s?' selected':''}>${s}</option>`).join('')}</select></label>
-        <label class="f"><span>Tag</span><select data-ed="tag">${S.tags.map(t=>`<option${l.tag===t?' selected':''}>${esc(t)}</option>`).join('')}</select></label></div>
+        <label class="f"><span>Tag</span><select data-ed="tag">${S.tags.map(t=>`<option${l.tag===t?' selected':''}>${esc(t)}</option>`).join('')}</select></label><label class="f"><span>Lead source</span><select data-ed="source">${[...new Set([...leadSources(),l.source||'Other'])].map(t=>`<option value="${esc(t)}"${l.source===t?' selected':''}>${esc(t)}</option>`).join('')}</select></label></div>
       <div class="row"><label class="f"><span>Next follow-up</span><input type="date" data-ed="followUp" value="${l.followUp||''}"></label>
         ${isProject(l)?`<label class="f"><span>Delivery due</span><input type="date" data-ed="dueDate" value="${l.dueDate||''}"></label>
         <label class="f"><span>Work status</span><select data-ed="work">${WORK.map(w=>`<option${l.work===w?' selected':''}>${w}</option>`).join('')}</select></label>`:''}</div>
@@ -1998,6 +2006,7 @@ function openLead(id){
     ${can('deleteLead')?`<button class="btn ghost wide" data-del="${l.id}" style="color:var(--bad)">Delete this lead</button>`:''}
   </div>`,()=>{const d=leadOf(id);if(!d)return;
     document.querySelectorAll('[data-ed]').forEach(el=>d[el.dataset.ed]=el.value);
+    const leadDateEl=document.querySelector('[data-lead-date]');if(leadDateEl&&leadDateEl.value){const old=d.createdAt||new Date().toISOString();const time=old.includes('T')?old.slice(10):'T00:00:00.000Z';d.createdAt=leadDateEl.value+time;d.date=leadDateEl.value;}
     d.fees=leadFee(d);d.updatedAt=new Date().toISOString();save();render();});
 
   $('#dass').onchange=e=>{assign(id,e.target.value);toast(e.target.value?'Assigned to '+nameOf(e.target.value):'Unassigned');};
@@ -2310,6 +2319,7 @@ function vInvoices(){
     <input type="date" id="ivfrom" value="${invFilt2.from}" title="From date">
     <input type="date" id="ivto" value="${invFilt2.to}" title="To date">
   </div>
+
   <div class="card" style="padding:0"><div class="tablewrap"><table>
     <thead><tr><th>Number</th><th>Type</th><th>Customer</th><th>Company / business</th><th>Email</th><th>Date</th><th>Days</th><th>Amount</th><th>Advance / paid</th><th>Balance</th><th>Work status</th><th>Status</th><th></th></tr></thead>
     <tbody>${rows.length?rows.map(i=>{const l=leadOf(i.leadId),paid=paidOn(i.id),bal=dueOn(i),age=days(i.date);
@@ -2340,7 +2350,12 @@ function nextNumber(co,type,forDate){
   // it, not the date it happened to be created in the CRM.
   const d=forDate?new Date(forDate+'T00:00:00'):new Date(),y=d.getFullYear(),s=d.getMonth()>=3?y:y-1;
   const key=(type==='tax'?co.prefix||'INV':co.pfPrefix||'PI')+'/'+String(s).slice(2)+'-'+String(s+1).slice(2);
-  const n=(S.seq[key]||0)+1;return {number:key+'/'+String(n).padStart(3,'0'),key,n};}
+  const prefix=key+'/';
+  // Repair stale sequence counters and avoid reusing any number already present in the shared CRM.
+  const used=new Set(S.invoices.filter(i=>i.id&&i.number).map(i=>String(i.number)));
+  let n=Math.max(Number(S.seq[key]||0),...S.invoices.filter(i=>String(i.number||'').startsWith(prefix)).map(i=>Number(String(i.number).slice(prefix.length))||0))+1;
+  let number=prefix+String(n).padStart(3,'0');while(used.has(number)){n++;number=prefix+String(n).padStart(3,'0');}
+  return {number,key,n};}
 function nextQuotationId(){
   const key='QID';const n=(S.seq[key]||4744)+1;S.seq[key]=n;return String(n);
 }
@@ -3706,8 +3721,8 @@ function vReports(){
     <div class="card"><h2>By tag</h2>${barsHTML(S.tags.map(t=>[t,L.filter(l=>l.tag===t).length]))}</div>
     <div class="card"><h2>Conversion by tag</h2>${barsHTML(S.tags.map(t=>{const all=L.filter(l=>l.tag===t);
       return [t,all.length?Math.round(all.filter(l=>leadPaid(l.id)>0).length/all.length*100):0];}))}</div>
-    <div class="card"><h2>Leads by source</h2>${barsHTML(SOURCES.map(s=>[s,L.filter(l=>l.source===s).length]))}</div>
-    <div class="card"><h2>Win rate by source</h2>${barsHTML(SOURCES.map(s=>{const all=L.filter(l=>l.source===s);
+    <div class="card"><h2>Leads by source</h2>${barsHTML(leadSources().map(s=>[s,L.filter(l=>l.source===s).length]))}</div>
+    <div class="card"><h2>Win rate by source</h2>${barsHTML(leadSources().map(s=>{const all=L.filter(l=>l.source===s);
       return [s,all.length?Math.round(all.filter(l=>leadPaid(l.id)>0).length/all.length*100):0];}))}</div>
     <div class="card" style="grid-column:1/-1"><h2>Closure rate by service type</h2>
       <p class="sub" style="margin-bottom:8px">Each service on a quotation counts as its own separate closure — a two-service deal contributes once to each service's numbers, not the full combined value to both. Revenue is the invoiced/quoted amount for that line, with any overall discount split proportionally across the services on the same document.</p>
@@ -3879,6 +3894,7 @@ function vServices(){
   const ed=can('editServices');
   return `<div class="topbar"><div><h1>Services</h1><p class="sub">Codes the paste dock reads, and your list price.</p></div>
     <div class="spacer"></div>${ed?`<button class="btn ghost" id="addSvcCat">+ Add service</button>`:''}</div>
+  ${ed?`<div class="card" style="margin-bottom:12px"><h2>Lead sources &amp; tracking links</h2><p class="sub">Manage the source names used across leads. Add one source per line. Use the generated link on your website or campaign; the website form must pass the <span class="mono">lead_source</span> query parameter into the CRM intake payload for automatic attribution.</p><label class="f"><span>Lead sources (one per line)</span><textarea id="leadSourcesEdit" rows="5">${esc(leadSources().join('\n'))}</textarea></label><label class="f"><span>Website / landing-page URL</span><input id="trackingBaseUrl" placeholder="https://example.com/contact" value="${esc(S.settings.trackingBaseUrl||'')}"></label><button class="btn wide" id="saveLeadSources">Save lead sources</button><div id="trackingLinks" style="margin-top:10px">${leadSources().map(src=>{const base=(S.settings.trackingBaseUrl||'').trim();const link=base?(base+(base.includes('?')?'&':'?')+'lead_source='+encodeURIComponent(src)):'';return `<div class="row" style="padding:6px 0;border-bottom:1px solid var(--line)"><div style="flex:1;min-width:0"><b>${esc(src)}</b><div class="sub" style="overflow-wrap:anywhere">${link?esc(link):'Enter a website URL above to generate links'}</div></div>${link?`<button class="btn sm ghost" data-copy-source-link="${esc(link)}">Copy</button>`:''}</div>`;}).join('')}</div></div>`:''}
   <div class="card" style="padding:0"><div class="tablewrap"><table>
     <thead><tr><th>Code</th><th>Service</th><th>List price</th><th>Enquiries</th><th>Avg charged</th><th></th></tr></thead><tbody>
     ${S.services.map((s,ix)=>`<tr>
@@ -4483,7 +4499,9 @@ function wire(){
       if(!S.tags.includes(v))S.tags.push(v);
       if(S.settings.removedTags)S.settings.removedTags=S.settings.removedTags.filter(t=>t!==v);
       save();render();};
-    document.querySelectorAll('[data-rmtag]').forEach(el=>el.onclick=()=>{
+    const sls=$('#saveLeadSources');sls&&(sls.onclick=()=>{const vals=[...new Set($('#leadSourcesEdit').value.split(/\n|,/).map(x=>x.trim()).filter(Boolean))];if(!vals.length)return toast('Add at least one lead source');S.settings.leadSources=vals;S.settings.trackingBaseUrl=$('#trackingBaseUrl').value.trim();audit('Updated lead sources');save();render();toast('Lead sources saved');});
+  document.querySelectorAll('[data-copy-source-link]').forEach(el=>el.onclick=async()=>{try{await navigator.clipboard.writeText(el.dataset.copySourceLink);toast('Tracking link copied');}catch(e){prompt('Copy tracking link',el.dataset.copySourceLink);}});
+  document.querySelectorAll('[data-rmtag]').forEach(el=>el.onclick=()=>{
       const removed=S.tags[+el.dataset.rmtag];
       S.tags.splice(+el.dataset.rmtag,1);
       // Remember this was deliberately deleted, not just "not in the list yet" — otherwise
