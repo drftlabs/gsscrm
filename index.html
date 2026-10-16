@@ -536,7 +536,7 @@ function mergeServerData(remote){
 }
 
 /* ---------- backend ---------- */
-const EXPECTED_BACKEND_VERSION=12;
+const EXPECTED_BACKEND_VERSION=13;
 let backendVersionMismatch=false;
 async function api(action,payload){
   if(!S.settings.api)throw new Error('No backend URL');
@@ -1270,8 +1270,7 @@ function multiLineChart(labels,series,hiddenKeys){
 const targetOf=m=>Number(S.settings.targets[m]||S.settings.defaultTarget||0);
 const collectedIn=m=>S.payments.filter(p=>(p.date||'').slice(0,7)===m).reduce((s,p)=>s+Number(p.amount||0),0);
 // Revenue recognition: the moment a project gets its first payment (any amount), the FULL quoted
-// value counts toward that month's target — not just what was actually collected. A ₹10,000 project
-// report with a ₹0 advance shown but marked started still counts ₹10,000 that month.
+// value counts toward that month's target — not just what was actually collected.
 function startedMonth(leadId){
   // "Started" = either the first payment landed, or the lead was manually moved into
   // Advance Paid / Completed with zero recorded payment. Whichever happened first, that
@@ -1287,11 +1286,12 @@ function startedMonth(leadId){
   return null;
 }
 function recognisedIn(m){
-  // Attribute the full business value to the month the lead first arrived, not the later
-  // month in which a quotation, invoice, or payment was recorded. Count leads with a real
-  // commercial action (quotation/invoice/payment) or a converted project stage.
+  // Attribute the full business value to the month the lead first arrived. An unpaid
+  // quotation/pro forma, unpaid invoice, or manually changed project stage must not count.
+  // Count the lead only after a positive payment is recorded against the lead or any of its
+  // invoices (including a pro forma). Once any payment exists, count the full deal value.
   return S.leads.filter(l=>(l.createdAt||l.date||'').slice(0,7)===m &&
-    (S.invoices.some(i=>i.leadId===l.id&&i.status!=='cancelled'&&i.status!=='denied') || leadPaid(l.id)>0 || LIVE.includes(l.stage)))
+    (leadPaid(l.id)>0 || S.invoices.some(i=>i.leadId===l.id && paidOn(i.id)>0)))
     .reduce((sum,l)=>sum+leadDealValue(l.id),0);
 }
 // Simpler revenue-by-month view requested for the P&L: the calendar month the LEAD arrived in is
